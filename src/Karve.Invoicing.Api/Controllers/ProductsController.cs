@@ -30,17 +30,24 @@ public class ProductsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<IEnumerable<ProductDto>>>> Get()
+    public async Task<ActionResult<ApiResponse<PagedResult<ProductDto>>>> Get(Guid companyId, int page = 1, int pageSize = 20, string? filter = null)
     {
         try
         {
-            var products = await _repository.GetAllAsync();
-            var dtos = _mapper.Map<IEnumerable<ProductDto>>(products);
-            return Ok(ApiResponse<IEnumerable<ProductDto>>.Success(dtos));
+            var result = await _repository.GetPagedAsync(companyId, page, pageSize, filter);
+            var dtos = _mapper.Map<IEnumerable<ProductDto>>(result.Items);
+            var pagedDto = new PagedResult<ProductDto>
+            {
+                Items = dtos,
+                TotalCount = result.TotalCount,
+                Page = result.Page,
+                PageSize = result.PageSize
+            };
+            return Ok(ApiResponse<PagedResult<ProductDto>>.Success(pagedDto));
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<IEnumerable<ProductDto>>.Failure("An error occurred while retrieving products."));
+            return StatusCode(500, ApiResponse<PagedResult<ProductDto>>.Failure("An error occurred while retrieving products."));
         }
     }
 

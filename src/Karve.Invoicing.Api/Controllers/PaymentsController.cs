@@ -30,17 +30,24 @@ public class PaymentsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<IEnumerable<PaymentDto>>>> Get()
+    public async Task<ActionResult<ApiResponse<PagedResult<PaymentDto>>>> Get(Guid companyId, int page = 1, int pageSize = 20, string? filter = null)
     {
         try
         {
-            var payments = await _repository.GetAllAsync();
-            var dtos = _mapper.Map<IEnumerable<PaymentDto>>(payments);
-            return Ok(ApiResponse<IEnumerable<PaymentDto>>.Success(dtos));
+            var result = await _repository.GetPagedAsync(companyId, page, pageSize, filter);
+            var dtos = _mapper.Map<IEnumerable<PaymentDto>>(result.Items);
+            var pagedDto = new PagedResult<PaymentDto>
+            {
+                Items = dtos,
+                TotalCount = result.TotalCount,
+                Page = result.Page,
+                PageSize = result.PageSize
+            };
+            return Ok(ApiResponse<PagedResult<PaymentDto>>.Success(pagedDto));
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<IEnumerable<PaymentDto>>.Failure("An error occurred while retrieving payments."));
+            return StatusCode(500, ApiResponse<PagedResult<PaymentDto>>.Failure("An error occurred while retrieving payments."));
         }
     }
 

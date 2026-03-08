@@ -30,17 +30,24 @@ public class CompaniesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<IEnumerable<CompanyDto>>>> Get()
+    public async Task<ActionResult<ApiResponse<PagedResult<CompanyDto>>>> Get(int page = 1, int pageSize = 20, string? filter = null)
     {
         try
         {
-            var companies = await _repository.GetAllAsync();
-            var dtos = _mapper.Map<IEnumerable<CompanyDto>>(companies);
-            return Ok(ApiResponse<IEnumerable<CompanyDto>>.Success(dtos));
+            var result = await _repository.GetPagedAsync(page, pageSize, filter);
+            var dtos = _mapper.Map<IEnumerable<CompanyDto>>(result.Items);
+            var pagedDto = new PagedResult<CompanyDto>
+            {
+                Items = dtos,
+                TotalCount = result.TotalCount,
+                Page = result.Page,
+                PageSize = result.PageSize
+            };
+            return Ok(ApiResponse<PagedResult<CompanyDto>>.Success(pagedDto));
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<IEnumerable<CompanyDto>>.Failure("An error occurred while retrieving companies."));
+            return StatusCode(500, ApiResponse<PagedResult<CompanyDto>>.Failure("An error occurred while retrieving companies."));
         }
     }
 

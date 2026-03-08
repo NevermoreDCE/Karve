@@ -30,17 +30,24 @@ public class InvoicesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<IEnumerable<InvoiceDto>>>> Get()
+    public async Task<ActionResult<ApiResponse<PagedResult<InvoiceDto>>>> Get(Guid companyId, int page = 1, int pageSize = 20, string? filter = null)
     {
         try
         {
-            var invoices = await _repository.GetAllAsync();
-            var dtos = _mapper.Map<IEnumerable<InvoiceDto>>(invoices);
-            return Ok(ApiResponse<IEnumerable<InvoiceDto>>.Success(dtos));
+            var result = await _repository.GetPagedAsync(companyId, page, pageSize, filter);
+            var dtos = _mapper.Map<IEnumerable<InvoiceDto>>(result.Items);
+            var pagedDto = new PagedResult<InvoiceDto>
+            {
+                Items = dtos,
+                TotalCount = result.TotalCount,
+                Page = result.Page,
+                PageSize = result.PageSize
+            };
+            return Ok(ApiResponse<PagedResult<InvoiceDto>>.Success(pagedDto));
         }
         catch (Exception ex)
         {
-            return StatusCode(500, ApiResponse<IEnumerable<InvoiceDto>>.Failure("An error occurred while retrieving invoices."));
+            return StatusCode(500, ApiResponse<PagedResult<InvoiceDto>>.Failure("An error occurred while retrieving invoices."));
         }
     }
 

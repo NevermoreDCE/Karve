@@ -1,4 +1,5 @@
 using Karve.Invoicing.Application.Interfaces;
+using Karve.Invoicing.Application.Responses;
 using Karve.Invoicing.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -44,5 +45,27 @@ public class CustomerRepository : ICustomerRepository
     public async Task<IEnumerable<Customer>> GetByCompanyIdAsync(Guid companyId)
     {
         return await _context.Customers.Where(c => c.CompanyId == companyId).ToListAsync();
+    }
+
+    public async Task<PagedResult<Customer>> GetPagedAsync(Guid companyId, int page = 1, int pageSize = 20, string? filter = null)
+    {
+        var query = _context.Customers.Where(c => c.CompanyId == companyId);
+        if (!string.IsNullOrEmpty(filter))
+        {
+            query = query.Where(c => c.Name.Contains(filter) || c.Email.Value.Contains(filter));
+        }
+        var totalCount = await query.CountAsync();
+        var items = await query
+            .OrderBy(c => c.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+        return new PagedResult<Customer>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 }
