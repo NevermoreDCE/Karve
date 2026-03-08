@@ -36,6 +36,11 @@ public class InvoiceRepository : IInvoiceRepository
         await _context.SaveChangesAsync();
     }
 
+    public async Task<IEnumerable<Invoice>> GetAllAsync()
+    {
+        return await _context.Invoices.ToListAsync();
+    }
+
     public async Task<IEnumerable<Invoice>> GetByCompanyIdAsync(Guid companyId)
     {
         return await _context.Invoices.Where(i => i.CompanyId == companyId).ToListAsync();

@@ -8,6 +8,7 @@ public interface IPaymentRepository
     Task AddAsync(Payment entity);
     Task UpdateAsync(Payment entity);
     Task DeleteAsync(Payment entity);
+    Task<IEnumerable<Payment>> GetAllAsync();
     Task<IEnumerable<Payment>> GetByCompanyIdAsync(Guid companyId);
     Task<IEnumerable<Payment>> GetByInvoiceIdAsync(Guid invoiceId);
 }

@@ -36,6 +36,11 @@ public class PaymentRepository : IPaymentRepository
         await _context.SaveChangesAsync();
     }
 
+    public async Task<IEnumerable<Payment>> GetAllAsync()
+    {
+        return await _context.Payments.ToListAsync();
+    }
+
     public async Task<IEnumerable<Payment>> GetByCompanyIdAsync(Guid companyId)
     {
         return await _context.Payments.Where(p => p.CompanyId == companyId).ToListAsync();

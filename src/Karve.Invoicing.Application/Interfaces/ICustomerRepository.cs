@@ -8,5 +8,6 @@ public interface ICustomerRepository
     Task AddAsync(Customer entity);
     Task UpdateAsync(Customer entity);
     Task DeleteAsync(Customer entity);
+    Task<IEnumerable<Customer>> GetAllAsync();
     Task<IEnumerable<Customer>> GetByCompanyIdAsync(Guid companyId);
 }

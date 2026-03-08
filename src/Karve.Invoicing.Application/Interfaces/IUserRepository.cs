@@ -8,6 +8,7 @@ public interface IUserRepository
     Task AddAsync(AppUser entity);
     Task UpdateAsync(AppUser entity);
     Task DeleteAsync(AppUser entity);
+    Task<IEnumerable<AppUser>> GetAllAsync();
     Task<AppUser?> GetByExternalUserIdAsync(string externalUserId);
     Task<IEnumerable<AppUser>> GetByCompanyIdAsync(Guid companyId);
 }

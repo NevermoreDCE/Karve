@@ -8,6 +8,7 @@ public interface IInvoiceRepository
     Task AddAsync(Invoice entity);
     Task UpdateAsync(Invoice entity);
     Task DeleteAsync(Invoice entity);
+    Task<IEnumerable<Invoice>> GetAllAsync();
     Task<IEnumerable<Invoice>> GetByCompanyIdAsync(Guid companyId);
     Task<IEnumerable<Invoice>> GetByCustomerIdAsync(Guid customerId);
 }

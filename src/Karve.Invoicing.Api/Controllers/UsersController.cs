@@ -1,0 +1,136 @@
+using AutoMapper;
+using FluentValidation;
+using Karve.Invoicing.Application.DTOs;
+using Karve.Invoicing.Application.Interfaces;
+using Karve.Invoicing.Application.Responses;
+using Karve.Invoicing.Domain.Entities;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Karve.Invoicing.Api.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+public class UsersController : ControllerBase
+{
+    private readonly IUserRepository _repository;
+    private readonly IMapper _mapper;
+    private readonly IValidator<CreateUserRequest> _createValidator;
+    private readonly IValidator<UpdateUserRequest> _updateValidator;
+
+    public UsersController(
+        IUserRepository repository,
+        IMapper mapper,
+        IValidator<CreateUserRequest> createValidator,
+        IValidator<UpdateUserRequest> updateValidator)
+    {
+        _repository = repository;
+        _mapper = mapper;
+        _createValidator = createValidator;
+        _updateValidator = updateValidator;
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<ApiResponse<IEnumerable<UserDto>>>> Get()
+    {
+        try
+        {
+            var users = await _repository.GetAllAsync();
+            var dtos = _mapper.Map<IEnumerable<UserDto>>(users);
+            return Ok(ApiResponse<IEnumerable<UserDto>>.Success(dtos));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<IEnumerable<UserDto>>.Failure("An error occurred while retrieving users."));
+        }
+    }
+
+    [HttpGet("{id}")]
+    public async Task<ActionResult<ApiResponse<UserDto>>> Get(Guid id)
+    {
+        try
+        {
+            var user = await _repository.GetByIdAsync(id);
+            if (user == null)
+            {
+                return NotFound(ApiResponse<UserDto>.Failure("User not found."));
+            }
+
+            var dto = _mapper.Map<UserDto>(user);
+            return Ok(ApiResponse<UserDto>.Success(dto));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<UserDto>.Failure("An error occurred while retrieving the user."));
+        }
+    }
+
+    [HttpPost]
+    public async Task<ActionResult<ApiResponse<UserDto>>> Post([FromBody] CreateUserRequest request)
+    {
+        try
+        {
+            var validationResult = await _createValidator.ValidateAsync(request);
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(ApiResponse<UserDto>.Failure(string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage))));
+            }
+
+            var user = _mapper.Map<AppUser>(request);
+            await _repository.AddAsync(user);
+            var dto = _mapper.Map<UserDto>(user);
+            return CreatedAtAction(nameof(Get), new { id = user.Id }, ApiResponse<UserDto>.Success(dto));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<UserDto>.Failure("An error occurred while creating the user."));
+        }
+    }
+
+    [HttpPut("{id}")]
+    public async Task<ActionResult<ApiResponse<UserDto>>> Put(Guid id, [FromBody] UpdateUserRequest request)
+    {
+        try
+        {
+            var validationResult = await _updateValidator.ValidateAsync(request);
+            if (!validationResult.IsValid)
+            {
+                return BadRequest(ApiResponse<UserDto>.Failure(string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage))));
+            }
+
+            var existingUser = await _repository.GetByIdAsync(id);
+            if (existingUser == null)
+            {
+                return NotFound(ApiResponse<UserDto>.Failure("User not found."));
+            }
+
+            _mapper.Map(request, existingUser);
+            await _repository.UpdateAsync(existingUser);
+            var dto = _mapper.Map<UserDto>(existingUser);
+            return Ok(ApiResponse<UserDto>.Success(dto));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<UserDto>.Failure("An error occurred while updating the user."));
+        }
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<ActionResult<ApiResponse<object>>> Delete(Guid id)
+    {
+        try
+        {
+            var user = await _repository.GetByIdAsync(id);
+            if (user == null)
+            {
+                return NotFound(ApiResponse<object>.Failure("User not found."));
+            }
+
+            await _repository.DeleteAsync(user);
+            return Ok(ApiResponse<object>.Success(null));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse<object>.Failure("An error occurred while deleting the user."));
+        }
+    }
+}

@@ -36,6 +36,11 @@ public class UserRepository : IUserRepository
         await _context.SaveChangesAsync();
     }
 
+    public async Task<IEnumerable<AppUser>> GetAllAsync()
+    {
+        return await _context.Users.ToListAsync();
+    }
+
     public async Task<AppUser?> GetByExternalUserIdAsync(string externalUserId)
     {
         return await _context.Users.FirstOrDefaultAsync(u => u.ExternalUserId == externalUserId);
