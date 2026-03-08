@@ -2,6 +2,7 @@ using FluentValidation;
 using Karve.Invoicing.Api.Middleware;
 using Karve.Invoicing.Application;
 using Karve.Invoicing.Infrastructure;
+using Microsoft.AspNetCore.Mvc.Versioning;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,6 +22,13 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
+});
+
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
 });
 
 var app = builder.Build();
