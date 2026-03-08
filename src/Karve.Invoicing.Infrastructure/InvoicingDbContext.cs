@@ -105,7 +105,11 @@ public class InvoicingDbContext : DbContext
         // Configure table names to camelCase
         foreach (var entity in modelBuilder.Model.GetEntityTypes())
         {
-            entity.SetTableName(entity.GetTableName().ToLowerInvariant());
+            var tableName = entity.GetTableName();
+            if (tableName != null)
+            {
+                entity.SetTableName(tableName.ToLowerInvariant());
+            }
         }
 
         // Configure required fields
