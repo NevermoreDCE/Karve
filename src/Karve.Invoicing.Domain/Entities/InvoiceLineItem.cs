@@ -12,6 +12,17 @@ public class InvoiceLineItem
     public Guid ProductId { get; set; }
     public Product Product { get; set; } = null!;
 
-    public int Quantity { get; set; }
+    private int _quantity;
+    public int Quantity
+    {
+        get => _quantity;
+        set
+        {
+            if (value < 0)
+                throw new ArgumentException("Quantity cannot be negative", nameof(value));
+            _quantity = value;
+        }
+    }
+
     public Money UnitPrice { get; set; } = null!;
 }
