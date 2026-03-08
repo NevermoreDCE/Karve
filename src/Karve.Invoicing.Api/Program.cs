@@ -1,3 +1,4 @@
+using FluentValidation;
 using Karve.Invoicing.Application;
 using Karve.Invoicing.Infrastructure;
 using Scalar.AspNetCore;
@@ -7,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddInvoicingDbContext(builder.Configuration.GetConnectionString("DefaultConnection")!);
 builder.Services.AddAutoMapper(typeof(AssemblyMarker));
+builder.Services.AddValidatorsFromAssemblyContaining<AssemblyMarker>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi();
 builder.Services.AddHealthChecks();
