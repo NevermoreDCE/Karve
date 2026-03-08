@@ -1,4 +1,5 @@
 using FluentValidation;
+using Karve.Invoicing.Api.Middleware;
 using Karve.Invoicing.Application;
 using Karve.Invoicing.Infrastructure;
 using Scalar.AspNetCore;
@@ -35,6 +36,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseCors("AllowLocalhost3000");
 app.MapHealthChecks("/health");
 
