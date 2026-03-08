@@ -229,7 +229,7 @@ For each interface in Application:
 
 ### **F1 — Configure Program.cs**
 - Add DbContext registration (via Infrastructure extension)
-- Add Swagger
+- Add OpenAPI and Scalar
 - Add minimal CORS policy (allow localhost:3000)
 - Add health check endpoint `/health`
 

@@ -8,7 +8,7 @@ public class Company
     public string Name { get; set; } = string.Empty;
 
     // Navigation properties
-    public ICollection<AppUser> Users { get; set; } = new List<AppUser>();
+    public ICollection<CompanyUser> CompanyUsers { get; set; } = new List<CompanyUser>();
     public ICollection<Customer> Customers { get; set; } = new List<Customer>();
     public ICollection<Product> Products { get; set; } = new List<Product>();
     public ICollection<Invoice> Invoices { get; set; } = new List<Invoice>();
