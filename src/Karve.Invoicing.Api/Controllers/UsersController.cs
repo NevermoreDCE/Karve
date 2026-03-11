@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Karve.Invoicing.Api.Controllers;
 
+/// <summary>
+/// Controller for managing users.
+/// </summary>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/[controller]")]
@@ -18,6 +21,13 @@ public class UsersController : ControllerBase
     private readonly IValidator<CreateUserRequest> _createValidator;
     private readonly IValidator<UpdateUserRequest> _updateValidator;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="UsersController"/> class.
+    /// </summary>
+    /// <param name="repository">The user repository.</param>
+    /// <param name="mapper">The AutoMapper instance.</param>
+    /// <param name="createValidator">Validator for creating users.</param>
+    /// <param name="updateValidator">Validator for updating users.</param>
     public UsersController(
         IUserRepository repository,
         IMapper mapper,
@@ -30,6 +40,14 @@ public class UsersController : ControllerBase
         _updateValidator = updateValidator;
     }
 
+    /// <summary>
+    /// Gets a paginated list of users for a specific company.
+    /// </summary>
+    /// <param name="companyId">The company ID to filter users.</param>
+    /// <param name="page">The page number (default: 1).</param>
+    /// <param name="pageSize">The number of items per page (default: 20).</param>
+    /// <param name="filter">Optional filter for user name or email.</param>
+    /// <returns>A paginated list of users.</returns>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<PagedResult<UserDto>>>> Get(Guid companyId, int page = 1, int pageSize = 20, string? filter = null)
     {
@@ -52,6 +70,11 @@ public class UsersController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Gets a user by its ID.
+    /// </summary>
+    /// <param name="id">The user ID.</param>
+    /// <returns>The user details.</returns>
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<UserDto>>> Get(Guid id)
     {
@@ -72,6 +95,11 @@ public class UsersController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Creates a new user.
+    /// </summary>
+    /// <param name="request">The user creation request.</param>
+    /// <returns>The created user.</returns>
     [HttpPost]
     public async Task<ActionResult<ApiResponse<UserDto>>> Post([FromBody] CreateUserRequest request)
     {
@@ -94,6 +122,12 @@ public class UsersController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Updates an existing user.
+    /// </summary>
+    /// <param name="id">The user ID.</param>
+    /// <param name="request">The user update request.</param>
+    /// <returns>The updated user.</returns>
     [HttpPut("{id}")]
     public async Task<ActionResult<ApiResponse<UserDto>>> Put(Guid id, [FromBody] UpdateUserRequest request)
     {
@@ -122,6 +156,11 @@ public class UsersController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Deletes a user by its ID.
+    /// </summary>
+    /// <param name="id">The user ID.</param>
+    /// <returns>Success or failure response.</returns>
     [HttpDelete("{id}")]
     public async Task<ActionResult<ApiResponse<object>>> Delete(Guid id)
     {

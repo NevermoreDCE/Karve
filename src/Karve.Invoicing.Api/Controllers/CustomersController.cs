@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Karve.Invoicing.Api.Controllers;
 
+/// <summary>
+/// Controller for managing customers.
+/// </summary>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/[controller]")]
@@ -18,6 +21,13 @@ public class CustomersController : ControllerBase
     private readonly IValidator<CreateCustomerRequest> _createValidator;
     private readonly IValidator<UpdateCustomerRequest> _updateValidator;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CustomersController"/> class.
+    /// </summary>
+    /// <param name="repository">The customer repository.</param>
+    /// <param name="mapper">The AutoMapper instance.</param>
+    /// <param name="createValidator">Validator for creating customers.</param>
+    /// <param name="updateValidator">Validator for updating customers.</param>
     public CustomersController(
         ICustomerRepository repository,
         IMapper mapper,
@@ -30,6 +40,14 @@ public class CustomersController : ControllerBase
         _updateValidator = updateValidator;
     }
 
+    /// <summary>
+    /// Gets a paginated list of customers for a specific company.
+    /// </summary>
+    /// <param name="companyId">The company ID to filter customers.</param>
+    /// <param name="page">The page number (default: 1).</param>
+    /// <param name="pageSize">The number of items per page (default: 20).</param>
+    /// <param name="filter">Optional filter for customer name or email.</param>
+    /// <returns>A paginated list of customers.</returns>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<PagedResult<CustomerDto>>>> Get(Guid companyId, int page = 1, int pageSize = 20, string? filter = null)
     {
@@ -52,6 +70,11 @@ public class CustomersController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Gets a customer by its ID.
+    /// </summary>
+    /// <param name="id">The customer ID.</param>
+    /// <returns>The customer details.</returns>
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> Get(Guid id)
     {
@@ -72,6 +95,11 @@ public class CustomersController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Creates a new customer.
+    /// </summary>
+    /// <param name="request">The customer creation request.</param>
+    /// <returns>The created customer.</returns>
     [HttpPost]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> Post([FromBody] CreateCustomerRequest request)
     {
@@ -94,6 +122,12 @@ public class CustomersController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Updates an existing customer.
+    /// </summary>
+    /// <param name="id">The customer ID.</param>
+    /// <param name="request">The customer update request.</param>
+    /// <returns>The updated customer.</returns>
     [HttpPut("{id}")]
     public async Task<ActionResult<ApiResponse<CustomerDto>>> Put(Guid id, [FromBody] UpdateCustomerRequest request)
     {
@@ -122,6 +156,11 @@ public class CustomersController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Deletes a customer by its ID.
+    /// </summary>
+    /// <param name="id">The customer ID.</param>
+    /// <returns>Success or failure response.</returns>
     [HttpDelete("{id}")]
     public async Task<ActionResult<ApiResponse<object>>> Delete(Guid id)
     {

@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Karve.Invoicing.Api.Controllers;
 
+/// <summary>
+/// Controller for managing invoices.
+/// </summary>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/[controller]")]
@@ -18,6 +21,13 @@ public class InvoicesController : ControllerBase
     private readonly IValidator<CreateInvoiceRequest> _createValidator;
     private readonly IValidator<UpdateInvoiceRequest> _updateValidator;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="InvoicesController"/> class.
+    /// </summary>
+    /// <param name="repository">The invoice repository.</param>
+    /// <param name="mapper">The AutoMapper instance.</param>
+    /// <param name="createValidator">Validator for creating invoices.</param>
+    /// <param name="updateValidator">Validator for updating invoices.</param>
     public InvoicesController(
         IInvoiceRepository repository,
         IMapper mapper,
@@ -30,6 +40,14 @@ public class InvoicesController : ControllerBase
         _updateValidator = updateValidator;
     }
 
+    /// <summary>
+    /// Gets a paginated list of invoices for a specific company.
+    /// </summary>
+    /// <param name="companyId">The company ID to filter invoices.</param>
+    /// <param name="page">The page number (default: 1).</param>
+    /// <param name="pageSize">The number of items per page (default: 20).</param>
+    /// <param name="filter">Optional filter for invoice status.</param>
+    /// <returns>A paginated list of invoices.</returns>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<PagedResult<InvoiceDto>>>> Get(Guid companyId, int page = 1, int pageSize = 20, string? filter = null)
     {
@@ -52,6 +70,11 @@ public class InvoicesController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Gets an invoice by its ID.
+    /// </summary>
+    /// <param name="id">The invoice ID.</param>
+    /// <returns>The invoice details.</returns>
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<InvoiceDto>>> Get(Guid id)
     {
@@ -72,6 +95,11 @@ public class InvoicesController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Creates a new invoice.
+    /// </summary>
+    /// <param name="request">The invoice creation request.</param>
+    /// <returns>The created invoice.</returns>
     [HttpPost]
     public async Task<ActionResult<ApiResponse<InvoiceDto>>> Post([FromBody] CreateInvoiceRequest request)
     {
@@ -94,6 +122,12 @@ public class InvoicesController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Updates an existing invoice.
+    /// </summary>
+    /// <param name="id">The invoice ID.</param>
+    /// <param name="request">The invoice update request.</param>
+    /// <returns>The updated invoice.</returns>
     [HttpPut("{id}")]
     public async Task<ActionResult<ApiResponse<InvoiceDto>>> Put(Guid id, [FromBody] UpdateInvoiceRequest request)
     {
@@ -122,6 +156,11 @@ public class InvoicesController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Deletes an invoice by its ID.
+    /// </summary>
+    /// <param name="id">The invoice ID.</param>
+    /// <returns>Success or failure response.</returns>
     [HttpDelete("{id}")]
     public async Task<ActionResult<ApiResponse<object>>> Delete(Guid id)
     {
@@ -143,6 +182,11 @@ public class InvoicesController : ControllerBase
     }
 
     // Additional endpoints for line items
+    /// <summary>
+    /// Gets line items for a specific invoice.
+    /// </summary>
+    /// <param name="id">The invoice ID.</param>
+    /// <returns>The invoice line items.</returns>
     [HttpGet("{id}/line-items")]
     public async Task<ActionResult<ApiResponse<IEnumerable<InvoiceLineItemDto>>>> GetLineItems(Guid id)
     {
@@ -163,6 +207,12 @@ public class InvoicesController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Adds a line item to a specific invoice.
+    /// </summary>
+    /// <param name="id">The invoice ID.</param>
+    /// <param name="request">The line item creation request.</param>
+    /// <returns>The created line item.</returns>
     [HttpPost("{id}/line-items")]
     public async Task<ActionResult<ApiResponse<InvoiceLineItemDto>>> PostLineItem(Guid id, [FromBody] CreateInvoiceLineItemRequest request)
     {
@@ -171,6 +221,11 @@ public class InvoicesController : ControllerBase
     }
 
     // Additional endpoints for payments
+    /// <summary>
+    /// Gets payments for a specific invoice.
+    /// </summary>
+    /// <param name="id">The invoice ID.</param>
+    /// <returns>The payments applied to the invoice.</returns>
     [HttpGet("{id}/payments")]
     public async Task<ActionResult<ApiResponse<IEnumerable<PaymentDto>>>> GetPayments(Guid id)
     {
@@ -191,6 +246,12 @@ public class InvoicesController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Adds a payment to a specific invoice.
+    /// </summary>
+    /// <param name="id">The invoice ID.</param>
+    /// <param name="request">The payment creation request.</param>
+    /// <returns>The created payment.</returns>
     [HttpPost("{id}/payments")]
     public async Task<ActionResult<ApiResponse<PaymentDto>>> PostPayment(Guid id, [FromBody] CreatePaymentRequest request)
     {

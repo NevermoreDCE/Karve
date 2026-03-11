@@ -3,7 +3,10 @@ using Karve.Invoicing.Api.Middleware;
 using Karve.Invoicing.Application;
 using Karve.Invoicing.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Versioning;
+using Microsoft.AspNetCore.Mvc;
 using Scalar.AspNetCore;
+using System.IO;
+using System.Reflection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +43,8 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference(options =>
     {
         options.Title = "Karve Invoicing API";
+        options.DisableAgent();
+        //options.IncludeXmlComments = true;
     });
 }
 

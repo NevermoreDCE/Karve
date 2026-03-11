@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Karve.Invoicing.Api.Controllers;
 
+/// <summary>
+/// Controller for managing products.
+/// </summary>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/[controller]")]
@@ -18,6 +21,13 @@ public class ProductsController : ControllerBase
     private readonly IValidator<CreateProductRequest> _createValidator;
     private readonly IValidator<UpdateProductRequest> _updateValidator;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ProductsController"/> class.
+    /// </summary>
+    /// <param name="repository">The product repository.</param>
+    /// <param name="mapper">The AutoMapper instance.</param>
+    /// <param name="createValidator">Validator for creating products.</param>
+    /// <param name="updateValidator">Validator for updating products.</param>
     public ProductsController(
         IProductRepository repository,
         IMapper mapper,
@@ -30,6 +40,14 @@ public class ProductsController : ControllerBase
         _updateValidator = updateValidator;
     }
 
+    /// <summary>
+    /// Gets a paginated list of products for a specific company.
+    /// </summary>
+    /// <param name="companyId">The company ID to filter products.</param>
+    /// <param name="page">The page number (default: 1).</param>
+    /// <param name="pageSize">The number of items per page (default: 20).</param>
+    /// <param name="filter">Optional filter for product name or SKU.</param>
+    /// <returns>A paginated list of products.</returns>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<PagedResult<ProductDto>>>> Get(Guid companyId, int page = 1, int pageSize = 20, string? filter = null)
     {
@@ -52,6 +70,11 @@ public class ProductsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Gets a product by its ID.
+    /// </summary>
+    /// <param name="id">The product ID.</param>
+    /// <returns>The product details.</returns>
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<ProductDto>>> Get(Guid id)
     {
@@ -72,6 +95,11 @@ public class ProductsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Creates a new product.
+    /// </summary>
+    /// <param name="request">The product creation request.</param>
+    /// <returns>The created product.</returns>
     [HttpPost]
     public async Task<ActionResult<ApiResponse<ProductDto>>> Post([FromBody] CreateProductRequest request)
     {
@@ -94,6 +122,12 @@ public class ProductsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Updates an existing product.
+    /// </summary>
+    /// <param name="id">The product ID.</param>
+    /// <param name="request">The product update request.</param>
+    /// <returns>The updated product.</returns>
     [HttpPut("{id}")]
     public async Task<ActionResult<ApiResponse<ProductDto>>> Put(Guid id, [FromBody] UpdateProductRequest request)
     {
@@ -122,6 +156,11 @@ public class ProductsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Deletes a product by its ID.
+    /// </summary>
+    /// <param name="id">The product ID.</param>
+    /// <returns>Success or failure response.</returns>
     [HttpDelete("{id}")]
     public async Task<ActionResult<ApiResponse<object>>> Delete(Guid id)
     {

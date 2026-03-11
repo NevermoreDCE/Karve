@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Karve.Invoicing.Api.Controllers;
 
+/// <summary>
+/// Controller for managing payments.
+/// </summary>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/[controller]")]
@@ -18,6 +21,13 @@ public class PaymentsController : ControllerBase
     private readonly IValidator<CreatePaymentRequest> _createValidator;
     private readonly IValidator<UpdatePaymentRequest> _updateValidator;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PaymentsController"/> class.
+    /// </summary>
+    /// <param name="repository">The payment repository.</param>
+    /// <param name="mapper">The AutoMapper instance.</param>
+    /// <param name="createValidator">Validator for creating payments.</param>
+    /// <param name="updateValidator">Validator for updating payments.</param>
     public PaymentsController(
         IPaymentRepository repository,
         IMapper mapper,
@@ -30,6 +40,14 @@ public class PaymentsController : ControllerBase
         _updateValidator = updateValidator;
     }
 
+    /// <summary>
+    /// Gets a paginated list of payments for a specific company.
+    /// </summary>
+    /// <param name="companyId">The company ID to filter payments.</param>
+    /// <param name="page">The page number (default: 1).</param>
+    /// <param name="pageSize">The number of items per page (default: 20).</param>
+    /// <param name="filter">Optional filter for payment method.</param>
+    /// <returns>A paginated list of payments.</returns>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<PagedResult<PaymentDto>>>> Get(Guid companyId, int page = 1, int pageSize = 20, string? filter = null)
     {
@@ -52,6 +70,11 @@ public class PaymentsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Gets a payment by its ID.
+    /// </summary>
+    /// <param name="id">The payment ID.</param>
+    /// <returns>The payment details.</returns>
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<PaymentDto>>> Get(Guid id)
     {
@@ -72,6 +95,11 @@ public class PaymentsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Creates a new payment.
+    /// </summary>
+    /// <param name="request">The payment creation request.</param>
+    /// <returns>The created payment.</returns>
     [HttpPost]
     public async Task<ActionResult<ApiResponse<PaymentDto>>> Post([FromBody] CreatePaymentRequest request)
     {
@@ -94,6 +122,12 @@ public class PaymentsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Updates an existing payment.
+    /// </summary>
+    /// <param name="id">The payment ID.</param>
+    /// <param name="request">The payment update request.</param>
+    /// <returns>The updated payment.</returns>
     [HttpPut("{id}")]
     public async Task<ActionResult<ApiResponse<PaymentDto>>> Put(Guid id, [FromBody] UpdatePaymentRequest request)
     {
@@ -122,6 +156,11 @@ public class PaymentsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Deletes a payment by its ID.
+    /// </summary>
+    /// <param name="id">The payment ID.</param>
+    /// <returns>Success or failure response.</returns>
     [HttpDelete("{id}")]
     public async Task<ActionResult<ApiResponse<object>>> Delete(Guid id)
     {

@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Karve.Invoicing.Api.Controllers;
 
+/// <summary>
+/// Controller for managing companies.
+/// </summary>
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/[controller]")]
@@ -18,6 +21,13 @@ public class CompaniesController : ControllerBase
     private readonly IValidator<CreateCompanyRequest> _createValidator;
     private readonly IValidator<UpdateCompanyRequest> _updateValidator;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CompaniesController"/> class.
+    /// </summary>
+    /// <param name="repository">The company repository.</param>
+    /// <param name="mapper">The AutoMapper instance.</param>
+    /// <param name="createValidator">Validator for creating companies.</param>
+    /// <param name="updateValidator">Validator for updating companies.</param>
     public CompaniesController(
         ICompanyRepository repository,
         IMapper mapper,
@@ -30,6 +40,13 @@ public class CompaniesController : ControllerBase
         _updateValidator = updateValidator;
     }
 
+    /// <summary>
+    /// Gets a paginated list of companies.
+    /// </summary>
+    /// <param name="page">The page number (default: 1).</param>
+    /// <param name="pageSize">The number of items per page (default: 20).</param>
+    /// <param name="filter">Optional filter for company name.</param>
+    /// <returns>A paginated list of companies.</returns>
     [HttpGet]
     public async Task<ActionResult<ApiResponse<PagedResult<CompanyDto>>>> Get(int page = 1, int pageSize = 20, string? filter = null)
     {
@@ -52,6 +69,11 @@ public class CompaniesController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Gets a company by its ID.
+    /// </summary>
+    /// <param name="id">The company ID.</param>
+    /// <returns>The company details.</returns>
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<CompanyDto>>> Get(Guid id)
     {
@@ -72,6 +94,11 @@ public class CompaniesController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Creates a new company.
+    /// </summary>
+    /// <param name="request">The company creation request.</param>
+    /// <returns>The created company.</returns>
     [HttpPost]
     public async Task<ActionResult<ApiResponse<CompanyDto>>> Post([FromBody] CreateCompanyRequest request)
     {
@@ -94,6 +121,12 @@ public class CompaniesController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Updates an existing company.
+    /// </summary>
+    /// <param name="id">The company ID.</param>
+    /// <param name="request">The company update request.</param>
+    /// <returns>The updated company.</returns>
     [HttpPut("{id}")]
     public async Task<ActionResult<ApiResponse<CompanyDto>>> Put(Guid id, [FromBody] UpdateCompanyRequest request)
     {
@@ -122,6 +155,11 @@ public class CompaniesController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Deletes a company by its ID.
+    /// </summary>
+    /// <param name="id">The company ID.</param>
+    /// <returns>Success or failure response.</returns>
     [HttpDelete("{id}")]
     public async Task<ActionResult<ApiResponse<object>>> Delete(Guid id)
     {
