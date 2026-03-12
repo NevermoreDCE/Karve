@@ -12,6 +12,11 @@
 *.env
 .vscode/
 
+# Local sqlite database
+*.db
+*.db-shm
+*.db-wal
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 

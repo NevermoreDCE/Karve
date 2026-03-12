@@ -7,8 +7,6 @@ using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Scalar.AspNetCore;
-using System.IO;
-using System.Reflection;
 
 /// <summary>
 /// Entry point for the Karve Invoicing API application.
@@ -25,10 +23,10 @@ public partial class Program
 
         // Add services to the container.
 
-        builder.Services.AddDbContext<InvoicingDbContext>(options =>
+        builder.Services.AddInvoicingInfrastructure(options =>
             options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")!));
 
-            
+        builder.Services.AddControllers();
         builder.Services.AddAutoMapper(typeof(AssemblyMarker));
         builder.Services.AddValidatorsFromAssemblyContaining<AssemblyMarker>();
         builder.Services.AddEndpointsApiExplorer();
@@ -72,6 +70,7 @@ public partial class Program
         app.UseMiddleware<ExceptionHandlingMiddleware>();
         app.UseCors("AllowLocalhost3000");
         app.MapHealthChecks("/health");
+        app.MapControllers();
 
         app.Run();
     }
