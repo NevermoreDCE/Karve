@@ -5,10 +5,9 @@ namespace Karve.Invoicing.Infrastructure;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddInvoicingDbContext(this IServiceCollection services, string connectionString)
+    public static IServiceCollection AddInvoicingDbContext(this IServiceCollection services, Action<DbContextOptionsBuilder> optionsAction)
     {
-        services.AddDbContext<InvoicingDbContext>(options =>
-            options.UseSqlite(connectionString));
+        services.AddDbContext<InvoicingDbContext>(optionsAction);
         return services;
     }
 }
