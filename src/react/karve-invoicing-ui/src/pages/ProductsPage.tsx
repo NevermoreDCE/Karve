@@ -1,14 +1,12 @@
 import { useState } from "react";
+import { ProductForm, type ProductFormValues } from "../components/ProductForm";
 import {
   useCreateProduct,
   useProducts,
   useUpdateProduct,
 } from "../hooks/useProducts";
-import type { CreateProductRequest } from "../types/api";
 
-type ProductFormState = CreateProductRequest;
-
-const emptyForm: ProductFormState = {
+const emptyForm: ProductFormValues = {
   name: "",
   sku: "",
   unitPriceAmount: 0,
@@ -21,7 +19,7 @@ export function ProductsPage() {
   const updateProductMutation = useUpdateProduct();
 
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
-  const [form, setForm] = useState<ProductFormState>(emptyForm);
+  const [form, setForm] = useState<ProductFormValues>(emptyForm);
 
   const isEditing = editingProductId !== null;
 
@@ -46,15 +44,14 @@ export function ProductsPage() {
     setForm(emptyForm);
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSubmit = async (values: ProductFormValues) => {
     if (isEditing && editingProductId) {
-      await updateProductMutation.mutateAsync({ id: editingProductId, data: form });
+      await updateProductMutation.mutateAsync({ id: editingProductId, data: values });
       resetForm();
       return;
     }
 
-    await createProductMutation.mutateAsync(form);
+    await createProductMutation.mutateAsync(values);
     resetForm();
   };
 
@@ -63,83 +60,17 @@ export function ProductsPage() {
       <h1>Products</h1>
       <p>Manage billable products and service catalog entries.</p>
 
-      <form onSubmit={handleSubmit} style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 20 }}>
         <h2>{isEditing ? "Edit Product" : "Create Product"}</h2>
-
-        <label>
-          Name
-          <input
-            required
-            value={form.name}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, name: event.target.value }))
-            }
-          />
-        </label>
-
-        <label>
-          SKU
-          <input
-            required
-            value={form.sku}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, sku: event.target.value }))
-            }
-          />
-        </label>
-
-        <label>
-          Unit Price
-          <input
-            required
-            type="number"
-            min="0"
-            step="0.01"
-            value={form.unitPriceAmount}
-            onChange={(event) =>
-              setForm((prev) => ({
-                ...prev,
-                unitPriceAmount: Number(event.target.value),
-              }))
-            }
-          />
-        </label>
-
-        <label>
-          Currency
-          <input
-            required
-            maxLength={3}
-            value={form.unitPriceCurrency}
-            onChange={(event) =>
-              setForm((prev) => ({
-                ...prev,
-                unitPriceCurrency: event.target.value.toUpperCase(),
-              }))
-            }
-          />
-        </label>
-
-        <div style={{ marginTop: 8 }}>
-          <button
-            type="submit"
-            disabled={createProductMutation.isPending || updateProductMutation.isPending}
-          >
-            {isEditing
-              ? updateProductMutation.isPending
-                ? "Saving..."
-                : "Save Product"
-              : createProductMutation.isPending
-              ? "Creating..."
-              : "Create Product"}
-          </button>
-          {isEditing ? (
-            <button type="button" style={{ marginLeft: 8 }} onClick={resetForm}>
-              Cancel
-            </button>
-          ) : null}
-        </div>
-      </form>
+        <ProductForm
+          key={editingProductId ?? "product-create"}
+          initialValues={form}
+          onSubmit={handleSubmit}
+          submitLabel={isEditing ? "Save Product" : "Create Product"}
+          isSubmitting={createProductMutation.isPending || updateProductMutation.isPending}
+          onCancel={isEditing ? resetForm : undefined}
+        />
+      </div>
 
       {productsQuery.isLoading ? <p>Loading products...</p> : null}
       {productsQuery.isError ? <p role="alert">{productsQuery.error.message}</p> : null}

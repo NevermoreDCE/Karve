@@ -1,20 +1,11 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { InvoiceForm, type InvoiceFormValues } from "../components/InvoiceForm";
 import {
   useDeleteInvoice,
   useInvoice,
   useUpdateInvoice,
 } from "../hooks/useInvoices";
-import type { InvoiceStatus, UpdateInvoiceRequest } from "../types/api";
-
-const invoiceStatuses: InvoiceStatus[] = [
-  "Draft",
-  "Sent",
-  "Viewed",
-  "Paid",
-  "Overdue",
-  "Canceled",
-];
 
 function toDateInputValue(isoDate: string): string {
   return isoDate.slice(0, 10);
@@ -30,32 +21,12 @@ export function InvoiceDetailPage() {
   const deleteInvoiceMutation = useDeleteInvoice();
 
   const [isEditing, setIsEditing] = useState(false);
-  const [form, setForm] = useState<UpdateInvoiceRequest>({
-    customerId: "",
-    invoiceDate: "",
-    dueDate: "",
-    status: "Draft",
-  });
 
-  useEffect(() => {
-    if (!invoiceQuery.data) {
-      return;
-    }
-
-    setForm({
-      customerId: invoiceQuery.data.customerId,
-      invoiceDate: toDateInputValue(invoiceQuery.data.invoiceDate),
-      dueDate: toDateInputValue(invoiceQuery.data.dueDate),
-      status: invoiceQuery.data.status,
-    });
-  }, [invoiceQuery.data]);
-
-  const handleUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleUpdate = async (values: InvoiceFormValues) => {
     if (!invoiceId) {
       return;
     }
-    await updateInvoiceMutation.mutateAsync({ id: invoiceId, data: form });
+    await updateInvoiceMutation.mutateAsync({ id: invoiceId, data: values });
     setIsEditing(false);
   };
 
@@ -95,6 +66,12 @@ export function InvoiceDetailPage() {
   }
 
   const invoice = invoiceQuery.data;
+  const invoiceFormInitialValues: InvoiceFormValues = {
+    customerId: invoice.customerId,
+    invoiceDate: toDateInputValue(invoice.invoiceDate),
+    dueDate: toDateInputValue(invoice.dueDate),
+    status: invoice.status,
+  };
 
   return (
     <section>
@@ -105,76 +82,17 @@ export function InvoiceDetailPage() {
       <h1>Invoice Details</h1>
 
       {isEditing ? (
-        <form onSubmit={handleUpdate} style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 20 }}>
           <h2>Edit Invoice</h2>
-
-          <label>
-            Customer ID
-            <input
-              required
-              value={form.customerId}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, customerId: event.target.value }))
-              }
-            />
-          </label>
-
-          <label>
-            Invoice Date
-            <input
-              required
-              type="date"
-              value={form.invoiceDate}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, invoiceDate: event.target.value }))
-              }
-            />
-          </label>
-
-          <label>
-            Due Date
-            <input
-              required
-              type="date"
-              value={form.dueDate}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, dueDate: event.target.value }))
-              }
-            />
-          </label>
-
-          <label>
-            Status
-            <select
-              value={form.status}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  status: event.target.value as InvoiceStatus,
-                }))
-              }
-            >
-              {invoiceStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div style={{ marginTop: 8 }}>
-            <button type="submit" disabled={updateInvoiceMutation.isPending}>
-              {updateInvoiceMutation.isPending ? "Saving..." : "Save Changes"}
-            </button>
-            <button
-              type="button"
-              style={{ marginLeft: 8 }}
-              onClick={() => setIsEditing(false)}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+          <InvoiceForm
+            key={`invoice-edit-${invoice.id}`}
+            initialValues={invoiceFormInitialValues}
+            onSubmit={handleUpdate}
+            submitLabel="Save Changes"
+            isSubmitting={updateInvoiceMutation.isPending}
+            onCancel={() => setIsEditing(false)}
+          />
+        </div>
       ) : (
         <div style={{ marginBottom: 20 }}>
           <p>

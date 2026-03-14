@@ -1,14 +1,15 @@
 import { useState } from "react";
 import {
+  CustomerForm,
+  type CustomerFormValues,
+} from "../components/CustomerForm";
+import {
   useCreateCustomer,
   useCustomers,
   useUpdateCustomer,
 } from "../hooks/useCustomers";
-import type { CreateCustomerRequest } from "../types/api";
 
-type CustomerFormState = CreateCustomerRequest;
-
-const emptyForm: CustomerFormState = {
+const emptyForm: CustomerFormValues = {
   name: "",
   email: "",
   billingAddress: "",
@@ -20,7 +21,7 @@ export function CustomersPage() {
   const updateCustomerMutation = useUpdateCustomer();
 
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
-  const [form, setForm] = useState<CustomerFormState>(emptyForm);
+  const [form, setForm] = useState<CustomerFormValues>(emptyForm);
 
   const isEditing = editingCustomerId !== null;
 
@@ -43,15 +44,14 @@ export function CustomersPage() {
     setForm(emptyForm);
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSubmit = async (values: CustomerFormValues) => {
     if (isEditing && editingCustomerId) {
-      await updateCustomerMutation.mutateAsync({ id: editingCustomerId, data: form });
+      await updateCustomerMutation.mutateAsync({ id: editingCustomerId, data: values });
       resetForm();
       return;
     }
 
-    await createCustomerMutation.mutateAsync(form);
+    await createCustomerMutation.mutateAsync(values);
     resetForm();
   };
 
@@ -60,63 +60,17 @@ export function CustomersPage() {
       <h1>Customers</h1>
       <p>Manage customer records used for invoice billing.</p>
 
-      <form onSubmit={handleSubmit} style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 20 }}>
         <h2>{isEditing ? "Edit Customer" : "Create Customer"}</h2>
-
-        <label>
-          Name
-          <input
-            required
-            value={form.name}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, name: event.target.value }))
-            }
-          />
-        </label>
-
-        <label>
-          Email
-          <input
-            required
-            type="email"
-            value={form.email}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, email: event.target.value }))
-            }
-          />
-        </label>
-
-        <label>
-          Billing Address
-          <input
-            required
-            value={form.billingAddress}
-            onChange={(event) =>
-              setForm((prev) => ({ ...prev, billingAddress: event.target.value }))
-            }
-          />
-        </label>
-
-        <div style={{ marginTop: 8 }}>
-          <button
-            type="submit"
-            disabled={createCustomerMutation.isPending || updateCustomerMutation.isPending}
-          >
-            {isEditing
-              ? updateCustomerMutation.isPending
-                ? "Saving..."
-                : "Save Customer"
-              : createCustomerMutation.isPending
-              ? "Creating..."
-              : "Create Customer"}
-          </button>
-          {isEditing ? (
-            <button type="button" style={{ marginLeft: 8 }} onClick={resetForm}>
-              Cancel
-            </button>
-          ) : null}
-        </div>
-      </form>
+        <CustomerForm
+          key={editingCustomerId ?? "customer-create"}
+          initialValues={form}
+          onSubmit={handleSubmit}
+          submitLabel={isEditing ? "Save Customer" : "Create Customer"}
+          isSubmitting={createCustomerMutation.isPending || updateCustomerMutation.isPending}
+          onCancel={isEditing ? resetForm : undefined}
+        />
+      </div>
 
       {customersQuery.isLoading ? <p>Loading customers...</p> : null}
       {customersQuery.isError ? <p role="alert">{customersQuery.error.message}</p> : null}

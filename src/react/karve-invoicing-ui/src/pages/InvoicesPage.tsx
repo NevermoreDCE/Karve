@@ -1,16 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { InvoiceForm, type InvoiceFormValues } from "../components/InvoiceForm";
 import { useCreateInvoice, useInvoices } from "../hooks/useInvoices";
-import type { CreateInvoiceRequest, InvoiceStatus } from "../types/api";
-
-const invoiceStatuses: InvoiceStatus[] = [
-  "Draft",
-  "Sent",
-  "Viewed",
-  "Paid",
-  "Overdue",
-  "Canceled",
-];
 
 function toDateInputValue(isoDate: string): string {
   return isoDate.slice(0, 10);
@@ -25,26 +16,19 @@ function getDefaultDueDate(): string {
 
 export function InvoicesPage() {
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState<CreateInvoiceRequest>({
+  const defaultFormValues: InvoiceFormValues = {
     customerId: "",
     invoiceDate: new Date().toISOString().slice(0, 10),
     dueDate: getDefaultDueDate(),
     status: "Draft",
-  });
+  };
 
   const invoicesQuery = useInvoices({ page: 1, pageSize: 20 });
   const createInvoiceMutation = useCreateInvoice();
 
-  const handleCreate = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    await createInvoiceMutation.mutateAsync(form);
+  const handleCreate = async (values: InvoiceFormValues) => {
+    await createInvoiceMutation.mutateAsync(values);
     setShowCreate(false);
-    setForm({
-      customerId: "",
-      invoiceDate: new Date().toISOString().slice(0, 10),
-      dueDate: getDefaultDueDate(),
-      status: "Draft",
-    });
   };
 
   return (
@@ -57,73 +41,21 @@ export function InvoicesPage() {
       </button>
 
       {showCreate ? (
-        <form onSubmit={handleCreate} style={{ marginTop: 12, marginBottom: 24 }}>
+        <div style={{ marginTop: 12, marginBottom: 24 }}>
           <h2>New Invoice</h2>
-
-          <label>
-            Customer ID
-            <input
-              required
-              value={form.customerId}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, customerId: event.target.value }))
-              }
-            />
-          </label>
-
-          <label>
-            Invoice Date
-            <input
-              required
-              type="date"
-              value={form.invoiceDate}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, invoiceDate: event.target.value }))
-              }
-            />
-          </label>
-
-          <label>
-            Due Date
-            <input
-              required
-              type="date"
-              value={form.dueDate}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, dueDate: event.target.value }))
-              }
-            />
-          </label>
-
-          <label>
-            Status
-            <select
-              value={form.status}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  status: event.target.value as InvoiceStatus,
-                }))
-              }
-            >
-              {invoiceStatuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div style={{ marginTop: 8 }}>
-            <button type="submit" disabled={createInvoiceMutation.isPending}>
-              {createInvoiceMutation.isPending ? "Creating..." : "Save Invoice"}
-            </button>
-          </div>
+          <InvoiceForm
+            key={showCreate ? "create-open" : "create-closed"}
+            initialValues={defaultFormValues}
+            onSubmit={handleCreate}
+            submitLabel="Save Invoice"
+            isSubmitting={createInvoiceMutation.isPending}
+            onCancel={() => setShowCreate(false)}
+          />
 
           {createInvoiceMutation.isError ? (
             <p role="alert">{createInvoiceMutation.error.message}</p>
           ) : null}
-        </form>
+        </div>
       ) : null}
 
       {invoicesQuery.isLoading ? <p>Loading invoices...</p> : null}
