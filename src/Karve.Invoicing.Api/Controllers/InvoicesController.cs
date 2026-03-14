@@ -30,6 +30,7 @@ public class InvoicesController : ControllerBase
     /// </summary>
     /// <param name="repository">The invoice repository.</param>
     /// <param name="mapper">The AutoMapper instance.</param>
+    /// <param name="currentUser">Current authenticated user context.</param>
     /// <param name="createValidator">Validator for creating invoices.</param>
     /// <param name="updateValidator">Validator for updating invoices.</param>
     public InvoicesController(

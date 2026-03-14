@@ -30,6 +30,7 @@ public class CustomersController : ControllerBase
     /// </summary>
     /// <param name="repository">The customer repository.</param>
     /// <param name="mapper">The AutoMapper instance.</param>
+    /// <param name="currentUser">Current authenticated user context.</param>
     /// <param name="createValidator">Validator for creating customers.</param>
     /// <param name="updateValidator">Validator for updating customers.</param>
     public CustomersController(

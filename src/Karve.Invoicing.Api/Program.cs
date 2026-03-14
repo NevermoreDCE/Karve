@@ -91,6 +91,7 @@ public partial class Program
         app.UseCors("AllowLocalhost3000");
         app.UseAuthentication();
         app.UseMiddleware<UserProvisioningMiddleware>();
+        app.UseMiddleware<TenantResolutionMiddleware>();
         app.UseAuthorization();
         app.MapHealthChecks("/health");
         app.MapControllers();

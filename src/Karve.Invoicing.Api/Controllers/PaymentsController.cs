@@ -30,6 +30,7 @@ public class PaymentsController : ControllerBase
     /// </summary>
     /// <param name="repository">The payment repository.</param>
     /// <param name="mapper">The AutoMapper instance.</param>
+    /// <param name="currentUser">Current authenticated user context.</param>
     /// <param name="createValidator">Validator for creating payments.</param>
     /// <param name="updateValidator">Validator for updating payments.</param>
     public PaymentsController(

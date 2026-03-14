@@ -30,6 +30,7 @@ public class ProductsController : ControllerBase
     /// </summary>
     /// <param name="repository">The product repository.</param>
     /// <param name="mapper">The AutoMapper instance.</param>
+    /// <param name="currentUser">Current authenticated user context.</param>
     /// <param name="createValidator">Validator for creating products.</param>
     /// <param name="updateValidator">Validator for updating products.</param>
     public ProductsController(

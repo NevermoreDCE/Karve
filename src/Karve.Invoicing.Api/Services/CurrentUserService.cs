@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Karve.Invoicing.Api.Middleware;
 using Karve.Invoicing.Application.Services;
 
 namespace Karve.Invoicing.Api.Services;
@@ -46,7 +47,7 @@ public sealed class CurrentUserService : ICurrentUserService
     {
         get
         {
-            if (!Guid.TryParse(UserId, out var localUserId))
+            if (!TryGetLocalUserId(out var localUserId) && !Guid.TryParse(UserId, out localUserId))
             {
                 return EmptyCompanyIds;
             }
@@ -62,5 +63,29 @@ public sealed class CurrentUserService : ICurrentUserService
     private string? GetClaimValue(string claimType)
     {
         return _httpContextAccessor.HttpContext?.User?.FindFirst(claimType)?.Value;
+    }
+
+    private bool TryGetLocalUserId(out Guid localUserId)
+    {
+        localUserId = Guid.Empty;
+
+        var items = _httpContextAccessor.HttpContext?.Items;
+        if (items is null)
+        {
+            return false;
+        }
+
+        if (!items.TryGetValue(UserProvisioningMiddleware.LocalUserIdItemKey, out var value))
+        {
+            return false;
+        }
+
+        if (value is Guid id)
+        {
+            localUserId = id;
+            return true;
+        }
+
+        return false;
     }
 }

@@ -30,6 +30,7 @@ public class UsersController : ControllerBase
     /// </summary>
     /// <param name="repository">The user repository.</param>
     /// <param name="mapper">The AutoMapper instance.</param>
+    /// <param name="currentUser">Current authenticated user context.</param>
     /// <param name="createValidator">Validator for creating users.</param>
     /// <param name="updateValidator">Validator for updating users.</param>
     public UsersController(
