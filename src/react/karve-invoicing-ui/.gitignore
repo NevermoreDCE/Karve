@@ -16,6 +16,11 @@ dist-ssr
 .env.development
 .env.production
 
+# Playwright artifacts
+playwright-report/
+test-results/
+blob-report/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
