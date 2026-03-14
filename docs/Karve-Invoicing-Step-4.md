@@ -23,7 +23,7 @@ This is the step where your system becomes a full-stack application.
 # 🧩 Task Group A — Create the React Project
 
 ### **A1 — Create the React + TypeScript project using Vite**
-From the `/src` folder:
+From the `/src/react` folder:
 
 ```bash
 npm create vite@latest karve-invoicing-ui -- --template react-ts
@@ -45,7 +45,7 @@ npm install -D eslint prettier @types/node
 ```
 
 ### **A4 — Create folder structure**
-Inside `src/`:
+Inside `src/react/`:
 
 ```
 /auth
