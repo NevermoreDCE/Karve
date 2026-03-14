@@ -96,8 +96,9 @@ public partial class Program
         app.MapHealthChecks("/health");
         app.MapControllers();
 
-        using (var scope = app.Services.CreateScope())
+        if (!builder.Configuration.GetValue<bool>("DisableDataSeeding"))
         {
+            using var scope = app.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
             db.Database.EnsureCreated();
             DataSeeder.Seed(db);

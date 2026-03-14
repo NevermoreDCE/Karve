@@ -9,6 +9,11 @@ namespace Karve.Invoicing.Api.Middleware;
 public sealed class TenantResolutionMiddleware
 {
     /// <summary>
+    /// HttpContext item key containing resolved company IDs for the current user.
+    /// </summary>
+    public const string ResolvedCompanyIdsItemKey = "ResolvedCompanyIds";
+
+    /// <summary>
     /// HttpContext item key containing all company IDs available to the current user.
     /// </summary>
     public const string AvailableCompanyIdsItemKey = "AvailableCompanyIds";
@@ -28,12 +33,21 @@ public sealed class TenantResolutionMiddleware
     /// Ensures authenticated users have at least one company and stores multi-company context.
     /// </summary>
     /// <param name="context">The current HTTP context.</param>
-    /// <param name="currentUser">Current user abstraction.</param>
-    public async Task InvokeAsync(HttpContext context, ICurrentUserService currentUser)
+    /// <param name="companyMembershipService">Service for querying user company memberships.</param>
+    public async Task InvokeAsync(HttpContext context, ICompanyMembershipService companyMembershipService)
     {
         if (context.User.Identity?.IsAuthenticated == true)
         {
-            var companyIds = currentUser.CompanyIds;
+            if (!context.Items.TryGetValue(UserProvisioningMiddleware.LocalUserIdItemKey, out var localUserIdObj) || localUserIdObj is not Guid localUserId)
+            {
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                await context.Response.WriteAsJsonAsync(
+                    ApiResponse<object>.Failure("Authenticated user provisioning context is missing."));
+                return;
+            }
+
+            var companyIds = await companyMembershipService.GetCompanyIdsForUserAsync(localUserId);
+            context.Items[ResolvedCompanyIdsItemKey] = companyIds;
 
             if (companyIds.Count == 0)
             {

@@ -10,18 +10,15 @@ namespace Karve.Invoicing.Api.Services;
 public sealed class CurrentUserService : ICurrentUserService
 {
     private static readonly IReadOnlyList<Guid> EmptyCompanyIds = Array.Empty<Guid>();
-    private readonly ICompanyMembershipService _companyMembershipService;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CurrentUserService"/> class.
     /// </summary>
     /// <param name="httpContextAccessor">Accessor for the active HTTP context.</param>
-    /// <param name="companyMembershipService">Service used to resolve user company memberships.</param>
-    public CurrentUserService(IHttpContextAccessor httpContextAccessor, ICompanyMembershipService companyMembershipService)
+    public CurrentUserService(IHttpContextAccessor httpContextAccessor)
     {
         _httpContextAccessor = httpContextAccessor;
-        _companyMembershipService = companyMembershipService;
     }
 
     /// <summary>
@@ -47,45 +44,33 @@ public sealed class CurrentUserService : ICurrentUserService
     {
         get
         {
-            if (!TryGetLocalUserId(out var localUserId) && !Guid.TryParse(UserId, out localUserId))
+            var items = _httpContextAccessor.HttpContext?.Items;
+            if (items is null)
             {
                 return EmptyCompanyIds;
             }
 
-            return _companyMembershipService
-                .GetCompanyIdsForUserAsync(localUserId)
-                .ConfigureAwait(false)
-                .GetAwaiter()
-                .GetResult();
+            if (!items.TryGetValue(TenantResolutionMiddleware.ResolvedCompanyIdsItemKey, out var value))
+            {
+                return EmptyCompanyIds;
+            }
+
+            if (value is IReadOnlyList<Guid> companyIds)
+            {
+                return companyIds;
+            }
+
+            if (value is List<Guid> mutableCompanyIds)
+            {
+                return mutableCompanyIds;
+            }
+
+            return EmptyCompanyIds;
         }
     }
 
     private string? GetClaimValue(string claimType)
     {
         return _httpContextAccessor.HttpContext?.User?.FindFirst(claimType)?.Value;
-    }
-
-    private bool TryGetLocalUserId(out Guid localUserId)
-    {
-        localUserId = Guid.Empty;
-
-        var items = _httpContextAccessor.HttpContext?.Items;
-        if (items is null)
-        {
-            return false;
-        }
-
-        if (!items.TryGetValue(UserProvisioningMiddleware.LocalUserIdItemKey, out var value))
-        {
-            return false;
-        }
-
-        if (value is Guid id)
-        {
-            localUserId = id;
-            return true;
-        }
-
-        return false;
     }
 }
