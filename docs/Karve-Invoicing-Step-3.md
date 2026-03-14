@@ -37,6 +37,12 @@ Add:
 }
 ```
 
+What goes in each field:
+- `Instance`: always `https://login.microsoftonline.com/` for Azure AD.
+- `TenantId`: your Azure AD **Directory (tenant) ID** — found on the Azure AD overview page or the app registration overview.
+- `ClientId`: the **Application (client) ID** of your **API app registration** — this is the app that the back-end API itself is registered as in Azure AD.
+- `Audience`: should match `ClientId` for a single-tenant API, or use the full App ID URI (e.g., `api://<client-id>`) if that's how you exposed your API. Microsoft.Identity.Web validates the incoming token audience against this value.
+
 ### **A3 — Configure authentication in `Program.cs`**
 ```csharp
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -247,18 +253,23 @@ Configure OAuth settings.
 Use these exact mappings in `src/Karve.Invoicing.Api/appsettings.json`:
 
 ```json
+"AzureAd": {
+  "Instance": "https://login.microsoftonline.com/",
+  "TenantId": "<directory-tenant-id>",
+  "ClientId": "<api-app-registration-client-id>",
+  "Audience": "<api-app-registration-client-id>"
+},
 "OpenApi": {
-    "OAuthClientId": "<SPA-APP-REGISTRATION-CLIENT-ID>",
-    "OAuthScope": "api://<API-APP-ID-URI-OR-API-CLIENT-ID>/user_impersonation"
+  "OAuthClientId": "<SPA-APP-REGISTRATION-CLIENT-ID>",
+  "OAuthScope": "api://<API-APP-ID-URI-OR-API-CLIENT-ID>/user_impersonation"
 }
 ```
 
 How to choose the values:
-- `OpenApi:OAuthClientId`: the **client ID of your SPA app registration** (the app users sign in to from browser/Scalar).
-- `OpenApi:OAuthScope`: the API delegated scope exposed by your API app registration, typically `api://<api-client-id>/user_impersonation`.
-
-Azure App Registration checklist for local Scalar testing:
-- API app registration:
+- `AzureAd:TenantId`: your Azure AD **Directory (tenant) ID** — found on the Azure AD overview page.
+- `AzureAd:ClientId`: the **Application (client) ID** of the **API app registration** (the back-end). This is used to validate tokens sent to the API.
+- `AzureAd:Audience`: same as `ClientId` for single-tenant APIs. Use the full App ID URI (e.g., `api://<api-client-id>`) if you configured a custom App ID URI and want to validate against it.
+- `OpenApi:OAuthClientId`: the **client ID of your SPA app registration** (the app users sign in to from the browser/Scalar UI — can be different to the API app registration).
     - `Expose an API` configured with App ID URI (for example `api://<api-client-id>`).
     - Delegated scope `user_impersonation` exists.
 - SPA app registration:

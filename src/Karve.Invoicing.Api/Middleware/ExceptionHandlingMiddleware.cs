@@ -42,6 +42,16 @@ public class ExceptionHandlingMiddleware
         catch (Exception ex)
         {
             _logger.LogError(ex, "An unhandled exception occurred.");
+
+            // If headers/body already started (for example during auth redirects),
+            // we cannot safely rewrite the response as JSON.
+            if (context.Response.HasStarted)
+            {
+                _logger.LogWarning(
+                    "The response has already started, so the exception middleware will rethrow.");
+                throw;
+            }
+
             context.Response.ContentType = "application/json";
 
             var (statusCode, message) = ex switch

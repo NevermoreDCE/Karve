@@ -9,6 +9,25 @@ public class DtoToDomainProfile : Profile
 {
     public DtoToDomainProfile()
     {
+        CreateMap<CompanyDto, Company>();
+
+        CreateMap<CustomerDto, Customer>()
+            .ForMember(dest => dest.Email, opt => opt.MapFrom(src => new EmailAddress(src.Email)));
+
+        CreateMap<ProductDto, Product>()
+            .ForMember(dest => dest.UnitPrice, opt => opt.MapFrom(src => new Money(src.UnitPriceAmount, src.UnitPriceCurrency)));
+
+        CreateMap<InvoiceDto, Invoice>();
+
+        CreateMap<InvoiceLineItemDto, InvoiceLineItem>()
+            .ForMember(dest => dest.UnitPrice, opt => opt.MapFrom(src => new Money(src.UnitPriceAmount, src.UnitPriceCurrency)));
+
+        CreateMap<PaymentDto, Payment>()
+            .ForMember(dest => dest.Amount, opt => opt.MapFrom(src => new Money(src.Amount, src.Currency)));
+
+        CreateMap<UserDto, AppUser>()
+            .ForMember(dest => dest.Email, opt => opt.MapFrom(src => new EmailAddress(src.Email)));
+
         CreateMap<CreateCompanyRequest, Company>()
             .ForMember(dest => dest.Id, opt => opt.MapFrom(_ => Guid.NewGuid()));
 

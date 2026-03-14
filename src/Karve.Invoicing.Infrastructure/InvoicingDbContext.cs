@@ -73,7 +73,13 @@ public class InvoicingDbContext : DbContext
         modelBuilder.Entity<Invoice>()
             .HasQueryFilter(e => CurrentCompanyIds.Contains(e.CompanyId));
 
+        modelBuilder.Entity<InvoiceLineItem>()
+            .HasQueryFilter(e => CurrentCompanyIds.Contains(e.Invoice.CompanyId));
+
         modelBuilder.Entity<Payment>()
+            .HasQueryFilter(e => CurrentCompanyIds.Contains(e.CompanyId));
+
+        modelBuilder.Entity<CompanyUser>()
             .HasQueryFilter(e => CurrentCompanyIds.Contains(e.CompanyId));
 
         // Configure relationships

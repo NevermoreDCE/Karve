@@ -37,6 +37,50 @@ public partial class Program
 
         builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+
+        if (builder.Environment.IsDevelopment())
+        {
+            builder.Services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options =>
+            {
+                var existingEvents = options.Events;
+                options.Events = new JwtBearerEvents
+                {
+                    OnAuthenticationFailed = async context =>
+                    {
+                        if (existingEvents?.OnAuthenticationFailed is not null)
+                        {
+                            await existingEvents.OnAuthenticationFailed(context);
+                        }
+
+                        var logger = context.HttpContext.RequestServices
+                            .GetRequiredService<ILoggerFactory>()
+                            .CreateLogger("JwtBearerDiagnostics");
+
+                        logger.LogError(
+                            context.Exception,
+                            "JWT authentication failed for {Path}.",
+                            context.HttpContext.Request.Path);
+                    },
+                    OnChallenge = async context =>
+                    {
+                        if (existingEvents?.OnChallenge is not null)
+                        {
+                            await existingEvents.OnChallenge(context);
+                        }
+
+                        var logger = context.HttpContext.RequestServices
+                            .GetRequiredService<ILoggerFactory>()
+                            .CreateLogger("JwtBearerDiagnostics");
+
+                        logger.LogWarning(
+                            "JWT challenge triggered for {Path}. Error: {Error}. Description: {Description}.",
+                            context.HttpContext.Request.Path,
+                            context.Error,
+                            context.ErrorDescription);
+                    }
+                };
+            });
+        }
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
         builder.Services.AddAuthorization(options =>
@@ -65,7 +109,7 @@ public partial class Program
         {
             options.AddPolicy("AllowLocalhost3000", policy =>
             {
-                policy.WithOrigins("http://localhost:3000")
+                policy.WithOrigins("https://localhost:3000")
                       .AllowAnyHeader()
                       .AllowAnyMethod();
             });
@@ -93,6 +137,36 @@ public partial class Program
                 options.DisableAgent();
                 ConfigureScalarOAuth(options, builder.Configuration);
                 //options.IncludeXmlComments = true;
+            });
+
+            app.Use(async (context, next) =>
+            {
+                var isScalarCallback = context.Request.Path.StartsWithSegments("/scalar/v1")
+                    && (context.Request.Query.ContainsKey("code")
+                        || context.Request.Query.ContainsKey("error")
+                        || context.Request.Query.ContainsKey("state"));
+
+                if (isScalarCallback)
+                {
+                    var logger = context.RequestServices
+                        .GetRequiredService<ILoggerFactory>()
+                        .CreateLogger("ScalarOAuthDiagnostics");
+
+                    var state = context.Request.Query["state"].ToString();
+                    var statePreview = state.Length > 12 ? state[..12] : state;
+                    var error = context.Request.Query["error"].ToString();
+                    var errorDescription = context.Request.Query["error_description"].ToString();
+
+                    logger.LogInformation(
+                        "Scalar OAuth callback reached. Path={Path}, HasCode={HasCode}, StatePreview={StatePreview}, Error={Error}, ErrorDescription={ErrorDescription}",
+                        context.Request.Path,
+                        context.Request.Query.ContainsKey("code"),
+                        statePreview,
+                        string.IsNullOrWhiteSpace(error) ? "<none>" : error,
+                        string.IsNullOrWhiteSpace(errorDescription) ? "<none>" : errorDescription);
+                }
+
+                await next();
             });
         }
 
@@ -197,16 +271,26 @@ public partial class Program
         var scopes = string.IsNullOrWhiteSpace(scope)
             ? Array.Empty<string>()
             : new[] { scope };
+        var redirectUri = BuildOAuthRedirectUri(configuration);
 
         options.AddAuthorizationCodeFlow("oauth2", flow =>
         {
             flow.AuthorizationUrl = authorizationUrl.AbsoluteUri;
             flow.TokenUrl = tokenUrl.AbsoluteUri;
             flow.Pkce = Pkce.Sha256;
+            flow.WithCredentialsLocation(CredentialsLocation.Body);
 
             if (!IsMissingOrPlaceholder(oauthClientId))
             {
                 flow.ClientId = oauthClientId;
+                // Scalar 2.13 can omit client_id in token exchange for some providers.
+                // Add an explicit body parameter so Azure AD always receives it.
+                flow.AddBodyParameter("client_id", oauthClientId);
+            }
+
+            if (!string.IsNullOrWhiteSpace(redirectUri))
+            {
+                flow.RedirectUri = redirectUri;
             }
 
             flow.SelectedScopes = scopes;
@@ -234,6 +318,17 @@ public partial class Program
         if (!IsMissingOrPlaceholder(clientId))
         {
             return $"api://{clientId}/user_impersonation";
+        }
+
+        return string.Empty;
+    }
+
+    private static string BuildOAuthRedirectUri(IConfiguration configuration)
+    {
+        var configuredRedirectUri = configuration["OpenApi:OAuthRedirectUri"];
+        if (!IsMissingOrPlaceholder(configuredRedirectUri))
+        {
+            return configuredRedirectUri!;
         }
 
         return string.Empty;
