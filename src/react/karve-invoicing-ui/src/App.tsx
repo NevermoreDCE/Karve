@@ -5,7 +5,9 @@ import { Toaster } from 'react-hot-toast'
 import { queryClient } from './api/queryClient'
 import { AuthProvider } from './auth/AuthProvider'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { NavBar } from './components/NavBar'
+import { Navbar } from './components/NavBar'
+import { Sidebar } from './components/Sidebar'
+import { PageContainer } from './components/PageContainer'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
@@ -13,12 +15,13 @@ import { InvoicesPage } from './pages/InvoicesPage'
 import { InvoiceDetailPage } from './pages/InvoiceDetailPage'
 import { CustomersPage } from './pages/CustomersPage'
 import { ProductsPage } from './pages/ProductsPage'
-import './App.css'
 
 function ProtectedPage({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute>
-      <ErrorBoundary>{children}</ErrorBoundary>
+      <ErrorBoundary>
+        <PageContainer sidebar={<Sidebar />}>{children}</PageContainer>
+      </ErrorBoundary>
     </ProtectedRoute>
   )
 }
@@ -29,10 +32,20 @@ function App() {
       <Toaster position="top-right" />
       <BrowserRouter>
         <AuthProvider>
-          <NavBar />
-          <main>
+          <div className="min-h-screen">
+            <Navbar />
+            <main>
             <Routes>
-              <Route path="/login" element={<ErrorBoundary><LoginPage /></ErrorBoundary>} />
+              <Route
+                path="/login"
+                element={
+                  <ErrorBoundary>
+                    <PageContainer>
+                      <LoginPage />
+                    </PageContainer>
+                  </ErrorBoundary>
+                }
+              />
               <Route
                 path="/"
                 element={
@@ -76,7 +89,8 @@ function App() {
               {/* Catch-all redirect */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-          </main>
+            </main>
+          </div>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
