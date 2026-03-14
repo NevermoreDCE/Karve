@@ -13,7 +13,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Identity.Web;
+using Microsoft.OpenApi;
 using Scalar.AspNetCore;
+using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
 /// Entry point for the Karve Invoicing API application.
@@ -50,7 +52,14 @@ public partial class Program
         builder.Services.AddAutoMapper(typeof(AssemblyMarker));
         builder.Services.AddValidatorsFromAssemblyContaining<AssemblyMarker>();
         builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddOpenApi();
+        builder.Services.AddOpenApi(options =>
+        {
+            options.AddDocumentTransformer((document, _, _) =>
+            {
+                ConfigureOAuth2SecurityScheme(document, builder.Configuration);
+                return Task.CompletedTask;
+            });
+        });
         builder.Services.AddHealthChecks();
         builder.Services.AddCors(options =>
         {
@@ -82,6 +91,7 @@ public partial class Program
             {
                 options.Title = "Karve Invoicing API";
                 options.DisableAgent();
+                ConfigureScalarOAuth(options, builder.Configuration);
                 //options.IncludeXmlComments = true;
             });
         }
@@ -123,5 +133,142 @@ public partial class Program
 
         var currentUserService = httpContext.RequestServices.GetService<ICurrentUserService>();
         return currentUserService?.CompanyIds.Any() == true;
+    }
+
+    private static void ConfigureOAuth2SecurityScheme(OpenApiDocument document, IConfiguration configuration)
+    {
+        if (!TryBuildAzureAdEndpoints(configuration, out var authorizationUrl, out var tokenUrl))
+        {
+            return;
+        }
+
+        document.Components ??= new OpenApiComponents();
+        document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+
+        var scope = BuildOAuthScope(configuration);
+        var oauthScheme = new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.OAuth2,
+            Description = "Azure AD OAuth2 authorization code flow with PKCE.",
+            Flows = new OpenApiOAuthFlows
+            {
+                AuthorizationCode = new OpenApiOAuthFlow
+                {
+                    AuthorizationUrl = authorizationUrl,
+                    TokenUrl = tokenUrl,
+                    Scopes = string.IsNullOrWhiteSpace(scope)
+                        ? new Dictionary<string, string>()
+                        : new Dictionary<string, string>
+                        {
+                            [scope] = "Access Karve Invoicing API"
+                        }
+                }
+            }
+        };
+
+        document.Components.SecuritySchemes["oauth2"] = oauthScheme;
+        document.Security ??= new List<OpenApiSecurityRequirement>();
+
+        var requiredScopes = string.IsNullOrWhiteSpace(scope)
+            ? new List<string>()
+            : new List<string> { scope };
+
+        var oauthSchemeReference = new OpenApiSecuritySchemeReference("oauth2", document, null);
+        document.Security.Add(new OpenApiSecurityRequirement
+        {
+            [oauthSchemeReference] = requiredScopes
+        });
+    }
+
+    private static void ConfigureScalarOAuth(ScalarOptions options, IConfiguration configuration)
+    {
+        if (!TryBuildAzureAdEndpoints(configuration, out var authorizationUrl, out var tokenUrl))
+        {
+            return;
+        }
+
+        var oauthClientId = configuration["OpenApi:OAuthClientId"];
+        if (IsMissingOrPlaceholder(oauthClientId))
+        {
+            oauthClientId = configuration["AzureAd:ClientId"];
+        }
+
+        var scope = BuildOAuthScope(configuration);
+        var scopes = string.IsNullOrWhiteSpace(scope)
+            ? Array.Empty<string>()
+            : new[] { scope };
+
+        options.AddAuthorizationCodeFlow("oauth2", flow =>
+        {
+            flow.AuthorizationUrl = authorizationUrl.AbsoluteUri;
+            flow.TokenUrl = tokenUrl.AbsoluteUri;
+            flow.Pkce = Pkce.Sha256;
+
+            if (!IsMissingOrPlaceholder(oauthClientId))
+            {
+                flow.ClientId = oauthClientId;
+            }
+
+            flow.SelectedScopes = scopes;
+        });
+
+        options.AddPreferredSecuritySchemes(new[] { "oauth2" });
+        options.AddDefaultScopes("oauth2", scopes);
+    }
+
+    private static string BuildOAuthScope(IConfiguration configuration)
+    {
+        var configuredScope = configuration["OpenApi:OAuthScope"];
+        if (!IsMissingOrPlaceholder(configuredScope))
+        {
+            return configuredScope!;
+        }
+
+        var audience = configuration["AzureAd:Audience"];
+        if (!IsMissingOrPlaceholder(audience))
+        {
+            return $"api://{audience}/user_impersonation";
+        }
+
+        var clientId = configuration["AzureAd:ClientId"];
+        if (!IsMissingOrPlaceholder(clientId))
+        {
+            return $"api://{clientId}/user_impersonation";
+        }
+
+        return string.Empty;
+    }
+
+    private static bool TryBuildAzureAdEndpoints(
+        IConfiguration configuration,
+        [NotNullWhen(true)] out Uri? authorizationUrl,
+        [NotNullWhen(true)] out Uri? tokenUrl)
+    {
+        authorizationUrl = null;
+        tokenUrl = null;
+
+        var instance = configuration["AzureAd:Instance"]?.TrimEnd('/');
+        var tenantId = configuration["AzureAd:TenantId"];
+
+        if (IsMissingOrPlaceholder(instance) || IsMissingOrPlaceholder(tenantId))
+        {
+            return false;
+        }
+
+        var authorizationUrlString = $"{instance}/{tenantId}/oauth2/v2.0/authorize";
+        var tokenUrlString = $"{instance}/{tenantId}/oauth2/v2.0/token";
+
+        return Uri.TryCreate(authorizationUrlString, UriKind.Absolute, out authorizationUrl)
+            && Uri.TryCreate(tokenUrlString, UriKind.Absolute, out tokenUrl);
+    }
+
+    private static bool IsMissingOrPlaceholder(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        return value.Contains('<') || value.Contains('>');
     }
 }
