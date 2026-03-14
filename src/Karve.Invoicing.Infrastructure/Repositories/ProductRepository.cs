@@ -1,5 +1,7 @@
 using Karve.Invoicing.Application.Interfaces;
+using Karve.Invoicing.Application.Exceptions;
 using Karve.Invoicing.Application.Responses;
+using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -8,31 +10,52 @@ namespace Karve.Invoicing.Infrastructure.Repositories;
 public class ProductRepository : IProductRepository
 {
     private readonly InvoicingDbContext _context;
+    private readonly ICurrentUserService _currentUser;
 
-    public ProductRepository(InvoicingDbContext context)
+    public ProductRepository(InvoicingDbContext context, ICurrentUserService currentUser)
     {
         _context = context;
+        _currentUser = currentUser;
     }
 
     public async Task<Product?> GetByIdAsync(Guid id)
     {
-        return await _context.Products.FindAsync(id);
+        var product = await _context.Products.FindAsync(id);
+        if (product is not null)
+        {
+            return product;
+        }
+
+        var unscopedProduct = await _context.Products
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (unscopedProduct is not null && !_currentUser.CompanyIds.Contains(unscopedProduct.CompanyId))
+        {
+            throw new ForbiddenException("User does not belong to this company.");
+        }
+
+        return null;
     }
 
     public async Task AddAsync(Product entity)
     {
+        EnsureCompanyAccess(entity.CompanyId);
         await _context.Products.AddAsync(entity);
         await _context.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(Product entity)
     {
+        EnsureCompanyAccess(entity.CompanyId);
         _context.Products.Update(entity);
         await _context.SaveChangesAsync();
     }
 
     public async Task DeleteAsync(Product entity)
     {
+        EnsureCompanyAccess(entity.CompanyId);
         _context.Products.Remove(entity);
         await _context.SaveChangesAsync();
     }
@@ -44,11 +67,13 @@ public class ProductRepository : IProductRepository
 
     public async Task<IEnumerable<Product>> GetByCompanyIdAsync(Guid companyId)
     {
+        EnsureCompanyAccess(companyId);
         return await _context.Products.Where(p => p.CompanyId == companyId).ToListAsync();
     }
 
     public async Task<PagedResult<Product>> GetPagedAsync(Guid companyId, int page = 1, int pageSize = 20, string? filter = null)
     {
+        EnsureCompanyAccess(companyId);
         var query = _context.Products.Where(p => p.CompanyId == companyId);
         if (!string.IsNullOrEmpty(filter))
         {
@@ -67,5 +92,13 @@ public class ProductRepository : IProductRepository
             Page = page,
             PageSize = pageSize
         };
+    }
+
+    private void EnsureCompanyAccess(Guid companyId)
+    {
+        if (!_currentUser.CompanyIds.Contains(companyId))
+        {
+            throw new ForbiddenException("User does not belong to this company.");
+        }
     }
 }

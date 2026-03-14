@@ -1,3 +1,4 @@
+using Karve.Invoicing.Application.Exceptions;
 using Karve.Invoicing.Application.Responses;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -41,11 +42,17 @@ public class ExceptionHandlingMiddleware
         catch (Exception ex)
         {
             _logger.LogError(ex, "An unhandled exception occurred.");
-
-            context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             context.Response.ContentType = "application/json";
 
-            var response = ApiResponse<object>.Failure("An internal server error occurred. Please try again later.");
+            var (statusCode, message) = ex switch
+            {
+                ForbiddenException => ((int)HttpStatusCode.Forbidden, ex.Message),
+                _ => ((int)HttpStatusCode.InternalServerError, "An internal server error occurred. Please try again later.")
+            };
+
+            context.Response.StatusCode = statusCode;
+
+            var response = ApiResponse<object>.Failure(message);
 
             var json = JsonSerializer.Serialize(response);
             await context.Response.WriteAsync(json);
