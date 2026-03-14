@@ -1,11 +1,24 @@
 import { type Configuration, LogLevel } from "@azure/msal-browser";
 
+function requiredEnv(name: string): string {
+  const value = import.meta.env[name as keyof ImportMetaEnv];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+const azureAdClientId = requiredEnv("VITE_AZURE_AD_CLIENT_ID");
+const azureAdTenantId = requiredEnv("VITE_AZURE_AD_TENANT_ID");
+const azureAdRedirectUri = requiredEnv("VITE_AZURE_AD_REDIRECT_URI");
+const azureAdApiScope = requiredEnv("VITE_AZURE_AD_API_SCOPE");
+
 export const msalConfig: Configuration = {
   auth: {
-    clientId: import.meta.env.VITE_AZURE_AD_CLIENT_ID,
-    authority: `https://login.microsoftonline.com/${import.meta.env.VITE_AZURE_AD_TENANT_ID}`,
-    redirectUri: import.meta.env.VITE_AZURE_AD_REDIRECT_URI,
-    postLogoutRedirectUri: import.meta.env.VITE_AZURE_AD_REDIRECT_URI,
+    clientId: azureAdClientId,
+    authority: `https://login.microsoftonline.com/${azureAdTenantId}`,
+    redirectUri: azureAdRedirectUri,
+    postLogoutRedirectUri: azureAdRedirectUri,
   },
   cache: {
     cacheLocation: "sessionStorage",
@@ -30,5 +43,5 @@ export const msalConfig: Configuration = {
 
 /** Scopes requested when acquiring a token for the Karve Invoicing API. */
 export const apiLoginRequest = {
-  scopes: [import.meta.env.VITE_AZURE_AD_API_SCOPE],
+  scopes: [azureAdApiScope],
 };

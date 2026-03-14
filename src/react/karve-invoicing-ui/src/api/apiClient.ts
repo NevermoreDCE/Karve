@@ -5,7 +5,15 @@ import axios, {
   type AxiosError,
 } from "axios";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+function requiredEnv(name: string): string {
+  const value = import.meta.env[name as keyof ImportMetaEnv];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+const BASE_URL = requiredEnv("VITE_API_BASE_URL");
 
 /** Shared Axios instance used by all API modules. */
 export const apiClient: AxiosInstance = axios.create({
