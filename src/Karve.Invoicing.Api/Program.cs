@@ -16,6 +16,9 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Identity.Web;
 using Microsoft.OpenApi;
 using Microsoft.Extensions.Logging;
+using Serilog;
+using Serilog.Events;
+using Serilog.Formatting.Compact;
 using Scalar.AspNetCore;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -32,8 +35,38 @@ public partial class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+        var serilogOptions = builder.Configuration
+            .GetSection(SerilogOptions.SectionName)
+            .Get<SerilogOptions>() ?? new SerilogOptions();
+        var openTelemetryOptions = builder.Configuration
+            .GetSection(OpenTelemetryOptions.SectionName)
+            .Get<OpenTelemetryOptions>() ?? new OpenTelemetryOptions();
 
         // Add services to the container.
+
+        builder.Services.Configure<SerilogOptions>(
+            builder.Configuration.GetSection(SerilogOptions.SectionName));
+        builder.Logging.ClearProviders();
+        builder.Host.UseSerilog((_, _, loggerConfiguration) =>
+        {
+            loggerConfiguration
+                .MinimumLevel.Is(ParseSerilogLevel(serilogOptions.MinimumLevel, LogEventLevel.Information))
+                .MinimumLevel.Override("Microsoft", ParseSerilogLevel(serilogOptions.MicrosoftMinimumLevel, LogEventLevel.Warning))
+                .Enrich.FromLogContext()
+                .Enrich.WithProperty("ServiceName", openTelemetryOptions.ServiceName)
+                .Enrich.WithProperty("Environment", string.IsNullOrWhiteSpace(openTelemetryOptions.Environment)
+                    ? builder.Environment.EnvironmentName
+                    : openTelemetryOptions.Environment);
+
+            if (serilogOptions.EnableJsonConsole)
+            {
+                loggerConfiguration.WriteTo.Console(new RenderedCompactJsonFormatter());
+            }
+            else
+            {
+                loggerConfiguration.WriteTo.Console();
+            }
+        }, writeToProviders: true);
 
         builder.Services.Configure<OpenTelemetryOptions>(
             builder.Configuration.GetSection(OpenTelemetryOptions.SectionName));
@@ -186,7 +219,7 @@ public partial class Program
         }
 
         app.UseHttpsRedirection();
-    app.UseMiddleware<CorrelationIdMiddleware>();
+        app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseMiddleware<ExceptionHandlingMiddleware>();
         app.UseCors("AllowLocalhost3000");
         app.UseAuthentication();
@@ -223,6 +256,13 @@ public partial class Program
 
         var currentUserService = httpContext.RequestServices.GetService<ICurrentUserService>();
         return currentUserService?.CompanyIds.Any() == true;
+    }
+
+    private static LogEventLevel ParseSerilogLevel(string? value, LogEventLevel fallback)
+    {
+        return Enum.TryParse<LogEventLevel>(value, ignoreCase: true, out var level)
+            ? level
+            : fallback;
     }
 
     private static void ConfigureOAuth2SecurityScheme(OpenApiDocument document, IConfiguration configuration)

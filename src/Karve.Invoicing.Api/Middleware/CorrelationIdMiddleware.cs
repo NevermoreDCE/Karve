@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Serilog.Context;
 
 namespace Karve.Invoicing.Api.Middleware;
 
@@ -55,6 +56,8 @@ public sealed class CorrelationIdMiddleware
             [ScopeCorrelationIdKey] = correlationId,
             [ScopeTraceIdKey] = Activity.Current?.TraceId.ToString()
         });
+        using var correlationContext = LogContext.PushProperty(ScopeCorrelationIdKey, correlationId);
+        using var traceContext = LogContext.PushProperty(ScopeTraceIdKey, Activity.Current?.TraceId.ToString());
 
         await _next(context);
     }
