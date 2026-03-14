@@ -1,7 +1,8 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, type ReactNode } from "react";
 import { useMsal, useIsAuthenticated } from "@azure/msal-react";
 import { InteractionRequiredAuthError } from "@azure/msal-browser";
 import { apiLoginRequest } from "./authConfig";
+import { configureApiClient } from "../api/apiClient";
 
 interface AuthContextValue {
   isAuthenticated: boolean;
@@ -43,6 +44,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
   };
+
+  // Wire up Axios interceptors whenever auth state changes so the API client
+  // always has a fresh token getter and a valid unauthorized handler.
+  useEffect(() => {
+    const cleanup = configureApiClient(getAccessToken, login);
+    return cleanup;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, login, logout, getAccessToken }}>
