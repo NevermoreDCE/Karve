@@ -1,5 +1,6 @@
 using AutoMapper;
 using FluentValidation;
+using Karve.Invoicing.Api.Logging;
 using Karve.Invoicing.Application.DTOs;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Responses;
@@ -7,6 +8,8 @@ using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Karve.Invoicing.Api.Controllers;
 
@@ -24,6 +27,7 @@ public class ProductsController : ControllerBase
     private readonly ICurrentUserService _currentUser;
     private readonly IValidator<CreateProductRequest> _createValidator;
     private readonly IValidator<UpdateProductRequest> _updateValidator;
+    private readonly ILogger<ProductsController> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ProductsController"/> class.
@@ -33,18 +37,21 @@ public class ProductsController : ControllerBase
     /// <param name="currentUser">Current authenticated user context.</param>
     /// <param name="createValidator">Validator for creating products.</param>
     /// <param name="updateValidator">Validator for updating products.</param>
+    /// <param name="logger">Logger for controller diagnostics.</param>
     public ProductsController(
         IProductRepository repository,
         IMapper mapper,
         ICurrentUserService currentUser,
         IValidator<CreateProductRequest> createValidator,
-        IValidator<UpdateProductRequest> updateValidator)
+        IValidator<UpdateProductRequest> updateValidator,
+        ILogger<ProductsController>? logger = null)
     {
         _repository = repository;
         _mapper = mapper;
         _currentUser = currentUser;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
+        _logger = logger ?? NullLogger<ProductsController>.Instance;
     }
 
     /// <summary>
@@ -77,6 +84,14 @@ public class ProductsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to retrieve products. Page={Page} PageSize={PageSize} Filter={Filter} CompanyMembershipCount={CompanyMembershipCount}",
+                page,
+                pageSize,
+                LogSanitizer.SanitizeForLog(filter),
+                _currentUser.CompanyIds.Count);
+
             return StatusCode(500, ApiResponse<PagedResult<ProductDto>>.Failure("An error occurred while retrieving products."));
         }
     }
@@ -102,6 +117,11 @@ public class ProductsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to retrieve product by id. ProductId={ProductId}",
+                id);
+
             return StatusCode(500, ApiResponse<ProductDto>.Failure("An error occurred while retrieving the product."));
         }
     }
@@ -135,6 +155,14 @@ public class ProductsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to create product. Name={ProductName} Sku={Sku} UnitPriceAmount={UnitPriceAmount} UnitPriceCurrency={UnitPriceCurrency}",
+                LogSanitizer.SanitizeForLog(request.Name),
+                LogSanitizer.SanitizeForLog(request.Sku),
+                request.UnitPriceAmount,
+                LogSanitizer.SanitizeForLog(request.UnitPriceCurrency));
+
             return StatusCode(500, ApiResponse<ProductDto>.Failure("An error occurred while creating the product."));
         }
     }
@@ -173,6 +201,15 @@ public class ProductsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to update product. ProductId={ProductId} Name={ProductName} Sku={Sku} UnitPriceAmount={UnitPriceAmount} UnitPriceCurrency={UnitPriceCurrency}",
+                id,
+                LogSanitizer.SanitizeForLog(request.Name),
+                LogSanitizer.SanitizeForLog(request.Sku),
+                request.UnitPriceAmount,
+                LogSanitizer.SanitizeForLog(request.UnitPriceCurrency));
+
             return StatusCode(500, ApiResponse<ProductDto>.Failure("An error occurred while updating the product."));
         }
     }
@@ -198,6 +235,11 @@ public class ProductsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to delete product. ProductId={ProductId}",
+                id);
+
             return StatusCode(500, ApiResponse<object>.Failure("An error occurred while deleting the product."));
         }
     }

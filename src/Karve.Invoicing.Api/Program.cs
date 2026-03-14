@@ -126,7 +126,7 @@ public partial class Program
 
         //var db = app.Services.GetRequiredService<InvoicingDbContext>();
         //db.Database.EnsureCreated();
-        
+
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
@@ -282,10 +282,11 @@ public partial class Program
 
             if (!IsMissingOrPlaceholder(oauthClientId))
             {
-                flow.ClientId = oauthClientId;
+                var safeOAuthClientId = oauthClientId!;
+                flow.ClientId = safeOAuthClientId;
                 // Scalar 2.13 can omit client_id in token exchange for some providers.
                 // Add an explicit body parameter so Azure AD always receives it.
-                flow.AddBodyParameter("client_id", oauthClientId);
+                flow.AddBodyParameter("client_id", safeOAuthClientId);
             }
 
             if (!string.IsNullOrWhiteSpace(redirectUri))

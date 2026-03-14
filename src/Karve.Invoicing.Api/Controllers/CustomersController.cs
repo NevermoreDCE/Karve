@@ -1,5 +1,6 @@
 using AutoMapper;
 using FluentValidation;
+using Karve.Invoicing.Api.Logging;
 using Karve.Invoicing.Application.DTOs;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Responses;
@@ -7,6 +8,8 @@ using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Karve.Invoicing.Api.Controllers;
 
@@ -24,6 +27,7 @@ public class CustomersController : ControllerBase
     private readonly ICurrentUserService _currentUser;
     private readonly IValidator<CreateCustomerRequest> _createValidator;
     private readonly IValidator<UpdateCustomerRequest> _updateValidator;
+    private readonly ILogger<CustomersController> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CustomersController"/> class.
@@ -33,18 +37,21 @@ public class CustomersController : ControllerBase
     /// <param name="currentUser">Current authenticated user context.</param>
     /// <param name="createValidator">Validator for creating customers.</param>
     /// <param name="updateValidator">Validator for updating customers.</param>
+    /// <param name="logger">Logger for controller diagnostics.</param>
     public CustomersController(
         ICustomerRepository repository,
         IMapper mapper,
         ICurrentUserService currentUser,
         IValidator<CreateCustomerRequest> createValidator,
-        IValidator<UpdateCustomerRequest> updateValidator)
+        IValidator<UpdateCustomerRequest> updateValidator,
+        ILogger<CustomersController>? logger = null)
     {
         _repository = repository;
         _mapper = mapper;
         _currentUser = currentUser;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
+        _logger = logger ?? NullLogger<CustomersController>.Instance;
     }
 
     /// <summary>
@@ -77,6 +84,14 @@ public class CustomersController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to retrieve customers. Page={Page} PageSize={PageSize} Filter={Filter} CompanyMembershipCount={CompanyMembershipCount}",
+                page,
+                pageSize,
+                LogSanitizer.SanitizeForLog(filter),
+                _currentUser.CompanyIds.Count);
+
             return StatusCode(500, ApiResponse<PagedResult<CustomerDto>>.Failure("An error occurred while retrieving customers."));
         }
     }
@@ -102,6 +117,11 @@ public class CustomersController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to retrieve customer by id. CustomerId={CustomerId}",
+                id);
+
             return StatusCode(500, ApiResponse<CustomerDto>.Failure("An error occurred while retrieving the customer."));
         }
     }
@@ -135,6 +155,13 @@ public class CustomersController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to create customer. Name={CustomerName} Email={CustomerEmail} BillingAddress={BillingAddress}",
+                LogSanitizer.SanitizeForLog(request.Name),
+                LogSanitizer.SanitizeForLog(request.Email),
+                LogSanitizer.SanitizeForLog(request.BillingAddress));
+
             return StatusCode(500, ApiResponse<CustomerDto>.Failure("An error occurred while creating the customer."));
         }
     }
@@ -173,6 +200,14 @@ public class CustomersController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to update customer. CustomerId={CustomerId} Name={CustomerName} Email={CustomerEmail} BillingAddress={BillingAddress}",
+                id,
+                LogSanitizer.SanitizeForLog(request.Name),
+                LogSanitizer.SanitizeForLog(request.Email),
+                LogSanitizer.SanitizeForLog(request.BillingAddress));
+
             return StatusCode(500, ApiResponse<CustomerDto>.Failure("An error occurred while updating the customer."));
         }
     }
@@ -198,6 +233,11 @@ public class CustomersController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to delete customer. CustomerId={CustomerId}",
+                id);
+
             return StatusCode(500, ApiResponse<object>.Failure("An error occurred while deleting the customer."));
         }
     }

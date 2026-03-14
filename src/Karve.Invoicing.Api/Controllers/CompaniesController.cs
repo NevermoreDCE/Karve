@@ -1,11 +1,14 @@
 using AutoMapper;
 using FluentValidation;
+using Karve.Invoicing.Api.Logging;
 using Karve.Invoicing.Application.DTOs;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Responses;
 using Karve.Invoicing.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Karve.Invoicing.Api.Controllers;
 
@@ -22,6 +25,7 @@ public class CompaniesController : ControllerBase
     private readonly IMapper _mapper;
     private readonly IValidator<CreateCompanyRequest> _createValidator;
     private readonly IValidator<UpdateCompanyRequest> _updateValidator;
+    private readonly ILogger<CompaniesController> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CompaniesController"/> class.
@@ -30,16 +34,19 @@ public class CompaniesController : ControllerBase
     /// <param name="mapper">The AutoMapper instance.</param>
     /// <param name="createValidator">Validator for creating companies.</param>
     /// <param name="updateValidator">Validator for updating companies.</param>
+    /// <param name="logger">Logger for controller diagnostics.</param>
     public CompaniesController(
         ICompanyRepository repository,
         IMapper mapper,
         IValidator<CreateCompanyRequest> createValidator,
-        IValidator<UpdateCompanyRequest> updateValidator)
+        IValidator<UpdateCompanyRequest> updateValidator,
+        ILogger<CompaniesController>? logger = null)
     {
         _repository = repository;
         _mapper = mapper;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
+        _logger = logger ?? NullLogger<CompaniesController>.Instance;
     }
 
     /// <summary>
@@ -67,6 +74,13 @@ public class CompaniesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to retrieve companies. Page={Page} PageSize={PageSize} Filter={Filter}",
+                page,
+                pageSize,
+                LogSanitizer.SanitizeForLog(filter));
+
             return StatusCode(500, ApiResponse<PagedResult<CompanyDto>>.Failure("An error occurred while retrieving companies."));
         }
     }
@@ -92,6 +106,11 @@ public class CompaniesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to retrieve company by id. CompanyId={CompanyId}",
+                id);
+
             return StatusCode(500, ApiResponse<CompanyDto>.Failure("An error occurred while retrieving the company."));
         }
     }
@@ -119,6 +138,11 @@ public class CompaniesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to create company. CompanyName={CompanyName}",
+                LogSanitizer.SanitizeForLog(request.Name));
+
             return StatusCode(500, ApiResponse<CompanyDto>.Failure("An error occurred while creating the company."));
         }
     }
@@ -153,6 +177,12 @@ public class CompaniesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to update company. CompanyId={CompanyId} CompanyName={CompanyName}",
+                id,
+                LogSanitizer.SanitizeForLog(request.Name));
+
             return StatusCode(500, ApiResponse<CompanyDto>.Failure("An error occurred while updating the company."));
         }
     }
@@ -178,6 +208,11 @@ public class CompaniesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to delete company. CompanyId={CompanyId}",
+                id);
+
             return StatusCode(500, ApiResponse<object>.Failure("An error occurred while deleting the company."));
         }
     }

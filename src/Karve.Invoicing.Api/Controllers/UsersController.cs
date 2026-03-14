@@ -1,5 +1,6 @@
 using AutoMapper;
 using FluentValidation;
+using Karve.Invoicing.Api.Logging;
 using Karve.Invoicing.Application.DTOs;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Responses;
@@ -7,6 +8,8 @@ using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Karve.Invoicing.Api.Controllers;
 
@@ -24,6 +27,7 @@ public class UsersController : ControllerBase
     private readonly ICurrentUserService _currentUser;
     private readonly IValidator<CreateUserRequest> _createValidator;
     private readonly IValidator<UpdateUserRequest> _updateValidator;
+    private readonly ILogger<UsersController> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="UsersController"/> class.
@@ -33,18 +37,21 @@ public class UsersController : ControllerBase
     /// <param name="currentUser">Current authenticated user context.</param>
     /// <param name="createValidator">Validator for creating users.</param>
     /// <param name="updateValidator">Validator for updating users.</param>
+    /// <param name="logger">Logger for controller diagnostics.</param>
     public UsersController(
         IUserRepository repository,
         IMapper mapper,
         ICurrentUserService currentUser,
         IValidator<CreateUserRequest> createValidator,
-        IValidator<UpdateUserRequest> updateValidator)
+        IValidator<UpdateUserRequest> updateValidator,
+        ILogger<UsersController>? logger = null)
     {
         _repository = repository;
         _mapper = mapper;
         _currentUser = currentUser;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
+        _logger = logger ?? NullLogger<UsersController>.Instance;
     }
 
     /// <summary>
@@ -77,6 +84,14 @@ public class UsersController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to retrieve users. Page={Page} PageSize={PageSize} Filter={Filter} CompanyMembershipCount={CompanyMembershipCount}",
+                page,
+                pageSize,
+                LogSanitizer.SanitizeForLog(filter),
+                _currentUser.CompanyIds.Count);
+
             return StatusCode(500, ApiResponse<PagedResult<UserDto>>.Failure("An error occurred while retrieving users."));
         }
     }
@@ -102,6 +117,11 @@ public class UsersController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to retrieve user by id. UserId={UserId}",
+                id);
+
             return StatusCode(500, ApiResponse<UserDto>.Failure("An error occurred while retrieving the user."));
         }
     }
@@ -129,6 +149,13 @@ public class UsersController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to create user. ExternalUserId={ExternalUserId} Email={Email} Role={Role}",
+                LogSanitizer.SanitizeForLog(request.ExternalUserId),
+                LogSanitizer.SanitizeForLog(request.Email),
+                LogSanitizer.SanitizeForLog(request.Role));
+
             return StatusCode(500, ApiResponse<UserDto>.Failure("An error occurred while creating the user."));
         }
     }
@@ -163,6 +190,14 @@ public class UsersController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to update user. UserId={UserId} ExternalUserId={ExternalUserId} Email={Email} Role={Role}",
+                id,
+                LogSanitizer.SanitizeForLog(request.ExternalUserId),
+                LogSanitizer.SanitizeForLog(request.Email),
+                LogSanitizer.SanitizeForLog(request.Role));
+
             return StatusCode(500, ApiResponse<UserDto>.Failure("An error occurred while updating the user."));
         }
     }
@@ -188,6 +223,11 @@ public class UsersController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to delete user. UserId={UserId}",
+                id);
+
             return StatusCode(500, ApiResponse<object>.Failure("An error occurred while deleting the user."));
         }
     }

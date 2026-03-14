@@ -1,5 +1,6 @@
 using AutoMapper;
 using FluentValidation;
+using Karve.Invoicing.Api.Logging;
 using Karve.Invoicing.Application.DTOs;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Responses;
@@ -7,6 +8,8 @@ using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Karve.Invoicing.Api.Controllers;
 
@@ -24,6 +27,7 @@ public class InvoicesController : ControllerBase
     private readonly ICurrentUserService _currentUser;
     private readonly IValidator<CreateInvoiceRequest> _createValidator;
     private readonly IValidator<UpdateInvoiceRequest> _updateValidator;
+    private readonly ILogger<InvoicesController> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="InvoicesController"/> class.
@@ -33,18 +37,21 @@ public class InvoicesController : ControllerBase
     /// <param name="currentUser">Current authenticated user context.</param>
     /// <param name="createValidator">Validator for creating invoices.</param>
     /// <param name="updateValidator">Validator for updating invoices.</param>
+    /// <param name="logger">Logger for controller diagnostics.</param>
     public InvoicesController(
         IInvoiceRepository repository,
         IMapper mapper,
         ICurrentUserService currentUser,
         IValidator<CreateInvoiceRequest> createValidator,
-        IValidator<UpdateInvoiceRequest> updateValidator)
+        IValidator<UpdateInvoiceRequest> updateValidator,
+        ILogger<InvoicesController>? logger = null)
     {
         _repository = repository;
         _mapper = mapper;
         _currentUser = currentUser;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
+        _logger = logger ?? NullLogger<InvoicesController>.Instance;
     }
 
     /// <summary>
@@ -77,6 +84,14 @@ public class InvoicesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to retrieve invoices. Page={Page} PageSize={PageSize} Filter={Filter} CompanyMembershipCount={CompanyMembershipCount}",
+                page,
+                pageSize,
+                LogSanitizer.SanitizeForLog(filter),
+                _currentUser.CompanyIds.Count);
+
             return StatusCode(500, ApiResponse<PagedResult<InvoiceDto>>.Failure("An error occurred while retrieving invoices."));
         }
     }
@@ -102,6 +117,11 @@ public class InvoicesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to retrieve invoice by id. InvoiceId={InvoiceId}",
+                id);
+
             return StatusCode(500, ApiResponse<InvoiceDto>.Failure("An error occurred while retrieving the invoice."));
         }
     }
@@ -135,6 +155,14 @@ public class InvoicesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to create invoice. CustomerId={CustomerId} InvoiceDate={InvoiceDate} DueDate={DueDate} Status={Status}",
+                request.CustomerId,
+                request.InvoiceDate,
+                request.DueDate,
+                request.Status);
+
             return StatusCode(500, ApiResponse<InvoiceDto>.Failure("An error occurred while creating the invoice."));
         }
     }
@@ -173,6 +201,15 @@ public class InvoicesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to update invoice. InvoiceId={InvoiceId} CustomerId={CustomerId} InvoiceDate={InvoiceDate} DueDate={DueDate} Status={Status}",
+                id,
+                request.CustomerId,
+                request.InvoiceDate,
+                request.DueDate,
+                request.Status);
+
             return StatusCode(500, ApiResponse<InvoiceDto>.Failure("An error occurred while updating the invoice."));
         }
     }
@@ -198,6 +235,11 @@ public class InvoicesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to delete invoice. InvoiceId={InvoiceId}",
+                id);
+
             return StatusCode(500, ApiResponse<object>.Failure("An error occurred while deleting the invoice."));
         }
     }
@@ -224,6 +266,11 @@ public class InvoicesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to retrieve invoice line items. InvoiceId={InvoiceId}",
+                id);
+
             return StatusCode(500, ApiResponse<IEnumerable<InvoiceLineItemDto>>.Failure("An error occurred while retrieving line items."));
         }
     }
@@ -263,6 +310,11 @@ public class InvoicesController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to retrieve invoice payments. InvoiceId={InvoiceId}",
+                id);
+
             return StatusCode(500, ApiResponse<IEnumerable<PaymentDto>>.Failure("An error occurred while retrieving payments."));
         }
     }

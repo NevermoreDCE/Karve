@@ -1,5 +1,6 @@
 using AutoMapper;
 using FluentValidation;
+using Karve.Invoicing.Api.Logging;
 using Karve.Invoicing.Application.DTOs;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Responses;
@@ -7,6 +8,8 @@ using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Karve.Invoicing.Api.Controllers;
 
@@ -24,6 +27,7 @@ public class PaymentsController : ControllerBase
     private readonly ICurrentUserService _currentUser;
     private readonly IValidator<CreatePaymentRequest> _createValidator;
     private readonly IValidator<UpdatePaymentRequest> _updateValidator;
+    private readonly ILogger<PaymentsController> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PaymentsController"/> class.
@@ -33,18 +37,21 @@ public class PaymentsController : ControllerBase
     /// <param name="currentUser">Current authenticated user context.</param>
     /// <param name="createValidator">Validator for creating payments.</param>
     /// <param name="updateValidator">Validator for updating payments.</param>
+    /// <param name="logger">Logger for controller diagnostics.</param>
     public PaymentsController(
         IPaymentRepository repository,
         IMapper mapper,
         ICurrentUserService currentUser,
         IValidator<CreatePaymentRequest> createValidator,
-        IValidator<UpdatePaymentRequest> updateValidator)
+        IValidator<UpdatePaymentRequest> updateValidator,
+        ILogger<PaymentsController>? logger = null)
     {
         _repository = repository;
         _mapper = mapper;
         _currentUser = currentUser;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
+        _logger = logger ?? NullLogger<PaymentsController>.Instance;
     }
 
     /// <summary>
@@ -77,6 +84,14 @@ public class PaymentsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to retrieve payments. Page={Page} PageSize={PageSize} Filter={Filter} CompanyMembershipCount={CompanyMembershipCount}",
+                page,
+                pageSize,
+                LogSanitizer.SanitizeForLog(filter),
+                _currentUser.CompanyIds.Count);
+
             return StatusCode(500, ApiResponse<PagedResult<PaymentDto>>.Failure("An error occurred while retrieving payments."));
         }
     }
@@ -102,6 +117,11 @@ public class PaymentsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to retrieve payment by id. PaymentId={PaymentId}",
+                id);
+
             return StatusCode(500, ApiResponse<PaymentDto>.Failure("An error occurred while retrieving the payment."));
         }
     }
@@ -135,6 +155,15 @@ public class PaymentsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to create payment. InvoiceId={InvoiceId} Amount={Amount} Currency={Currency} PaymentDate={PaymentDate} Method={Method}",
+                request.InvoiceId,
+                request.Amount,
+                LogSanitizer.SanitizeForLog(request.Currency),
+                request.PaymentDate,
+                request.Method);
+
             return StatusCode(500, ApiResponse<PaymentDto>.Failure("An error occurred while creating the payment."));
         }
     }
@@ -173,6 +202,16 @@ public class PaymentsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to update payment. PaymentId={PaymentId} InvoiceId={InvoiceId} Amount={Amount} Currency={Currency} PaymentDate={PaymentDate} Method={Method}",
+                id,
+                request.InvoiceId,
+                request.Amount,
+                LogSanitizer.SanitizeForLog(request.Currency),
+                request.PaymentDate,
+                request.Method);
+
             return StatusCode(500, ApiResponse<PaymentDto>.Failure("An error occurred while updating the payment."));
         }
     }
@@ -198,6 +237,11 @@ public class PaymentsController : ControllerBase
         }
         catch (Exception ex)
         {
+            _logger.LogError(
+                ex,
+                "Failed to delete payment. PaymentId={PaymentId}",
+                id);
+
             return StatusCode(500, ApiResponse<object>.Failure("An error occurred while deleting the payment."));
         }
     }
