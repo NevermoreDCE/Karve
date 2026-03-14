@@ -1,5 +1,7 @@
 using Karve.Invoicing.Application.Interfaces;
+using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Infrastructure.Repositories;
+using Karve.Invoicing.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -17,6 +19,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IUserProvisioningService, UserProvisioningService>();
 
         return services;
     }

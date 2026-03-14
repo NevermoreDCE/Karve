@@ -79,6 +79,7 @@ public partial class Program
         app.UseMiddleware<ExceptionHandlingMiddleware>();
         app.UseCors("AllowLocalhost3000");
         app.UseAuthentication();
+        app.UseMiddleware<UserProvisioningMiddleware>();
         app.UseAuthorization();
         app.MapHealthChecks("/health");
         app.MapControllers();
