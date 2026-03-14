@@ -7,9 +7,6 @@ public class UpdateCustomerRequestValidator : AbstractValidator<UpdateCustomerRe
 {
     public UpdateCustomerRequestValidator()
     {
-        RuleFor(x => x.CompanyId)
-            .NotEmpty().WithMessage("Company ID is required.");
-
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Customer name is required.")
             .Length(1, 100).WithMessage("Customer name must be between 1 and 100 characters.");

@@ -43,10 +43,6 @@ public class PaymentDto
 public class CreatePaymentRequest
 {
     /// <summary>
-    /// The company ID the payment belongs to.
-    /// </summary>
-    public Guid CompanyId { get; set; }
-    /// <summary>
     /// The invoice ID the payment is applied to.
     /// </summary>
     public Guid InvoiceId { get; set; }
@@ -73,10 +69,6 @@ public class CreatePaymentRequest
 /// </summary>
 public class UpdatePaymentRequest
 {
-    /// <summary>
-    /// The company ID the payment belongs to.
-    /// </summary>
-    public Guid CompanyId { get; set; }
     /// <summary>
     /// The invoice ID the payment is applied to.
     /// </summary>

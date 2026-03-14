@@ -8,9 +8,6 @@ public class CreateInvoiceRequestValidator : AbstractValidator<CreateInvoiceRequ
 {
     public CreateInvoiceRequestValidator()
     {
-        RuleFor(x => x.CompanyId)
-            .NotEmpty().WithMessage("Company ID is required.");
-
         RuleFor(x => x.CustomerId)
             .NotEmpty().WithMessage("Customer ID is required.");
 

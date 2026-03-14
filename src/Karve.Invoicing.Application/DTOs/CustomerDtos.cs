@@ -37,11 +37,6 @@ public class CustomerDto
 public class CreateCustomerRequest
 {
     /// <summary>
-    /// The company ID the customer belongs to.
-    /// </summary>
-    public Guid CompanyId { get; set; }
-
-    /// <summary>
     /// The name of the customer.
     /// </summary>
     public string Name { get; set; } = string.Empty;
@@ -62,7 +57,6 @@ public class CreateCustomerRequest
 /// </summary>
 public class UpdateCustomerRequest
 {
-    public Guid CompanyId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string BillingAddress { get; set; } = string.Empty;

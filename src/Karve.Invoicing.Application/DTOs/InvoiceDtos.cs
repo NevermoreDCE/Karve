@@ -47,10 +47,6 @@ public class InvoiceDto
 public class CreateInvoiceRequest
 {
     /// <summary>
-    /// The company ID the invoice belongs to.
-    /// </summary>
-    public Guid CompanyId { get; set; }
-    /// <summary>
     /// The customer ID for the invoice.
     /// </summary>
     public Guid CustomerId { get; set; }
@@ -72,10 +68,6 @@ public class CreateInvoiceRequest
 /// </summary>
 public class UpdateInvoiceRequest
 {
-    /// <summary>
-    /// The company ID the invoice belongs to.
-    /// </summary>
-    public Guid CompanyId { get; set; }
     /// <summary>
     /// The customer ID for the invoice.
     /// </summary>

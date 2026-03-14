@@ -3,6 +3,7 @@ using FluentValidation;
 using Karve.Invoicing.Application.DTOs;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Responses;
+using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,6 +21,7 @@ public class PaymentsController : ControllerBase
 {
     private readonly IPaymentRepository _repository;
     private readonly IMapper _mapper;
+    private readonly ICurrentUserService _currentUser;
     private readonly IValidator<CreatePaymentRequest> _createValidator;
     private readonly IValidator<UpdatePaymentRequest> _updateValidator;
 
@@ -33,11 +35,13 @@ public class PaymentsController : ControllerBase
     public PaymentsController(
         IPaymentRepository repository,
         IMapper mapper,
+        ICurrentUserService currentUser,
         IValidator<CreatePaymentRequest> createValidator,
         IValidator<UpdatePaymentRequest> updateValidator)
     {
         _repository = repository;
         _mapper = mapper;
+        _currentUser = currentUser;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
     }
@@ -45,16 +49,20 @@ public class PaymentsController : ControllerBase
     /// <summary>
     /// Gets a paginated list of payments for a specific company.
     /// </summary>
-    /// <param name="companyId">The company ID to filter payments.</param>
     /// <param name="page">The page number (default: 1).</param>
     /// <param name="pageSize">The number of items per page (default: 20).</param>
     /// <param name="filter">Optional filter for payment method.</param>
     /// <returns>A paginated list of payments.</returns>
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<PagedResult<PaymentDto>>>> Get(Guid companyId, int page = 1, int pageSize = 20, string? filter = null)
+    public async Task<ActionResult<ApiResponse<PagedResult<PaymentDto>>>> Get(int page = 1, int pageSize = 20, string? filter = null)
     {
         try
         {
+            if (!TryGetSingleCompanyId(out var companyId, out var contextError))
+            {
+                return BadRequest(ApiResponse<PagedResult<PaymentDto>>.Failure(contextError));
+            }
+
             var result = await _repository.GetPagedAsync(companyId, page, pageSize, filter);
             var dtos = _mapper.Map<IEnumerable<PaymentDto>>(result.Items);
             var pagedDto = new PagedResult<PaymentDto>
@@ -114,6 +122,12 @@ public class PaymentsController : ControllerBase
             }
 
             var payment = _mapper.Map<Payment>(request);
+            if (!TryGetSingleCompanyId(out var companyId, out var contextError))
+            {
+                return BadRequest(ApiResponse<PaymentDto>.Failure(contextError));
+            }
+
+            payment.CompanyId = companyId;
             await _repository.AddAsync(payment);
             var dto = _mapper.Map<PaymentDto>(payment);
             return CreatedAtAction(nameof(Get), new { id = payment.Id }, ApiResponse<PaymentDto>.Success(dto));
@@ -148,6 +162,10 @@ public class PaymentsController : ControllerBase
             }
 
             _mapper.Map(request, existingPayment);
+            if (TryGetSingleCompanyId(out var companyId, out _))
+            {
+                existingPayment.CompanyId = companyId;
+            }
             await _repository.UpdateAsync(existingPayment);
             var dto = _mapper.Map<PaymentDto>(existingPayment);
             return Ok(ApiResponse<PaymentDto>.Success(dto));
@@ -181,5 +199,26 @@ public class PaymentsController : ControllerBase
         {
             return StatusCode(500, ApiResponse<object>.Failure("An error occurred while deleting the payment."));
         }
+    }
+
+    private bool TryGetSingleCompanyId(out Guid companyId, out string error)
+    {
+        companyId = Guid.Empty;
+
+        if (_currentUser.CompanyIds.Count == 0)
+        {
+            error = "No company membership found for the current user.";
+            return false;
+        }
+
+        if (_currentUser.CompanyIds.Count > 1)
+        {
+            error = "Multiple company memberships detected. Company selection is not implemented yet.";
+            return false;
+        }
+
+        companyId = _currentUser.CompanyIds[0];
+        error = string.Empty;
+        return true;
     }
 }

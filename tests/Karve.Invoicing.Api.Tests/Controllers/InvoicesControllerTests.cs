@@ -5,6 +5,7 @@ using Karve.Invoicing.Api.Controllers;
 using Karve.Invoicing.Application.DTOs;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Responses;
+using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Domain.Entities;
 using Karve.Invoicing.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
@@ -19,10 +20,10 @@ public class InvoicesControllerTests
     {
         var repository = new Mock<IInvoiceRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out var companyId);
         var createValidator = new Mock<IValidator<CreateInvoiceRequest>>();
         var updateValidator = new Mock<IValidator<UpdateInvoiceRequest>>();
 
-        var companyId = Guid.NewGuid();
         var invoices = new List<Invoice>
         {
             new()
@@ -67,9 +68,9 @@ public class InvoicesControllerTests
                 Status = i.Status
             }).ToList());
 
-        var controller = new InvoicesController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
-        var result = await controller.Get(companyId, 1, 20, null);
+        var result = await controller.Get(1, 20, null);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<ApiResponse<PagedResult<InvoiceDto>>>(ok.Value);
@@ -83,12 +84,12 @@ public class InvoicesControllerTests
     {
         var repository = new Mock<IInvoiceRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out var companyId);
         var createValidator = new Mock<IValidator<CreateInvoiceRequest>>();
         var updateValidator = new Mock<IValidator<UpdateInvoiceRequest>>();
 
         var request = new CreateInvoiceRequest
         {
-            CompanyId = Guid.NewGuid(),
             CustomerId = Guid.NewGuid(),
             InvoiceDate = DateTime.UtcNow,
             DueDate = DateTime.UtcNow.AddDays(30),
@@ -98,7 +99,7 @@ public class InvoicesControllerTests
         var entity = new Invoice
         {
             Id = Guid.NewGuid(),
-            CompanyId = request.CompanyId,
+            CompanyId = Guid.Empty,
             CustomerId = request.CustomerId,
             InvoiceDate = request.InvoiceDate,
             DueDate = request.DueDate,
@@ -115,7 +116,7 @@ public class InvoicesControllerTests
 
         mapper
             .Setup(m => m.Map<InvoiceDto>(entity))
-            .Returns(new InvoiceDto
+            .Returns(() => new InvoiceDto
             {
                 Id = entity.Id,
                 CompanyId = entity.CompanyId,
@@ -125,7 +126,7 @@ public class InvoicesControllerTests
                 Status = entity.Status
             });
 
-        var controller = new InvoicesController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
         var result = await controller.Post(request);
 
@@ -133,7 +134,7 @@ public class InvoicesControllerTests
         var response = Assert.IsType<ApiResponse<InvoiceDto>>(created.Value);
         Assert.True(response.IsSuccess);
         Assert.NotNull(response.Data);
-        Assert.Equal(request.CompanyId, response.Data.CompanyId);
+        Assert.Equal(companyId, response.Data.CompanyId);
         Assert.Equal(request.CustomerId, response.Data.CustomerId);
 
         repository.Verify(r => r.AddAsync(entity), Times.Once);
@@ -144,12 +145,12 @@ public class InvoicesControllerTests
     {
         var repository = new Mock<IInvoiceRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out _);
         var createValidator = new Mock<IValidator<CreateInvoiceRequest>>();
         var updateValidator = new Mock<IValidator<UpdateInvoiceRequest>>();
 
         var request = new CreateInvoiceRequest
         {
-            CompanyId = Guid.NewGuid(),
             CustomerId = Guid.NewGuid(),
             InvoiceDate = DateTime.UtcNow,
             DueDate = DateTime.UtcNow.AddDays(-1),
@@ -160,7 +161,7 @@ public class InvoicesControllerTests
             .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult(new[] { new ValidationFailure("DueDate", "Due date must be after invoice date") }));
 
-        var controller = new InvoicesController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
         var result = await controller.Post(request);
 
@@ -176,13 +177,13 @@ public class InvoicesControllerTests
     {
         var repository = new Mock<IInvoiceRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out var companyId);
         var createValidator = new Mock<IValidator<CreateInvoiceRequest>>();
         var updateValidator = new Mock<IValidator<UpdateInvoiceRequest>>();
 
         var id = Guid.NewGuid();
         var request = new UpdateInvoiceRequest
         {
-            CompanyId = Guid.NewGuid(),
             CustomerId = Guid.NewGuid(),
             InvoiceDate = DateTime.UtcNow,
             DueDate = DateTime.UtcNow.AddDays(15),
@@ -192,7 +193,7 @@ public class InvoicesControllerTests
         var existing = new Invoice
         {
             Id = id,
-            CompanyId = request.CompanyId,
+            CompanyId = companyId,
             CustomerId = request.CustomerId,
             InvoiceDate = request.InvoiceDate.AddDays(-2),
             DueDate = request.DueDate.AddDays(-2),
@@ -212,14 +213,14 @@ public class InvoicesControllerTests
             .Returns(new InvoiceDto
             {
                 Id = id,
-                CompanyId = request.CompanyId,
+                CompanyId = companyId,
                 CustomerId = request.CustomerId,
                 InvoiceDate = request.InvoiceDate,
                 DueDate = request.DueDate,
                 Status = request.Status
             });
 
-        var controller = new InvoicesController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
         var result = await controller.Put(id, request);
 
@@ -236,13 +237,13 @@ public class InvoicesControllerTests
     {
         var repository = new Mock<IInvoiceRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out _);
         var createValidator = new Mock<IValidator<CreateInvoiceRequest>>();
         var updateValidator = new Mock<IValidator<UpdateInvoiceRequest>>();
 
         var id = Guid.NewGuid();
         var request = new UpdateInvoiceRequest
         {
-            CompanyId = Guid.NewGuid(),
             CustomerId = Guid.NewGuid(),
             InvoiceDate = DateTime.UtcNow,
             DueDate = DateTime.UtcNow.AddDays(-1),
@@ -253,7 +254,7 @@ public class InvoicesControllerTests
             .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult(new[] { new ValidationFailure("DueDate", "Due date must be after invoice date") }));
 
-        var controller = new InvoicesController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
         var result = await controller.Put(id, request);
 
@@ -269,6 +270,7 @@ public class InvoicesControllerTests
     {
         var repository = new Mock<IInvoiceRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out var companyId);
         var createValidator = new Mock<IValidator<CreateInvoiceRequest>>();
         var updateValidator = new Mock<IValidator<UpdateInvoiceRequest>>();
 
@@ -276,7 +278,7 @@ public class InvoicesControllerTests
         var invoice = new Invoice
         {
             Id = id,
-            CompanyId = Guid.NewGuid(),
+            CompanyId = companyId,
             CustomerId = Guid.NewGuid(),
             InvoiceDate = DateTime.UtcNow,
             DueDate = DateTime.UtcNow.AddDays(30),
@@ -287,7 +289,7 @@ public class InvoicesControllerTests
             .Setup(r => r.GetByIdAsync(id))
             .ReturnsAsync(invoice);
 
-        var controller = new InvoicesController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
         var result = await controller.Delete(id);
 
@@ -295,5 +297,13 @@ public class InvoicesControllerTests
         var response = Assert.IsType<ApiResponse<object>>(ok.Value);
         Assert.True(response.IsSuccess);
         repository.Verify(r => r.DeleteAsync(invoice), Times.Once);
+    }
+
+    private static Mock<ICurrentUserService> MockCurrentUserWithSingleCompany(out Guid companyId)
+    {
+        companyId = Guid.NewGuid();
+        var currentUser = new Mock<ICurrentUserService>();
+        currentUser.SetupGet(c => c.CompanyIds).Returns(new List<Guid> { companyId });
+        return currentUser;
     }
 }

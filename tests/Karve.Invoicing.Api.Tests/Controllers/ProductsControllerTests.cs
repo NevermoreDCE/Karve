@@ -5,6 +5,7 @@ using Karve.Invoicing.Api.Controllers;
 using Karve.Invoicing.Application.DTOs;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Responses;
+using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Domain.Entities;
 using Karve.Invoicing.Domain.ValueObjects;
 using Microsoft.AspNetCore.Mvc;
@@ -19,10 +20,10 @@ public class ProductsControllerTests
     {
         var repository = new Mock<IProductRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out var companyId);
         var createValidator = new Mock<IValidator<CreateProductRequest>>();
         var updateValidator = new Mock<IValidator<UpdateProductRequest>>();
 
-        var companyId = Guid.NewGuid();
         var products = new List<Product>
         {
             new() { Id = Guid.NewGuid(), CompanyId = companyId, Name = "Product 1", Sku = "SKU-1", UnitPrice = new Money(10m, "USD") },
@@ -51,9 +52,9 @@ public class ProductsControllerTests
                 UnitPriceCurrency = p.UnitPrice.Currency
             }).ToList());
 
-        var controller = new ProductsController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new ProductsController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
-        var result = await controller.Get(companyId, 1, 20, null);
+        var result = await controller.Get(1, 20, null);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<ApiResponse<PagedResult<ProductDto>>>(ok.Value);
@@ -67,12 +68,12 @@ public class ProductsControllerTests
     {
         var repository = new Mock<IProductRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out var companyId);
         var createValidator = new Mock<IValidator<CreateProductRequest>>();
         var updateValidator = new Mock<IValidator<UpdateProductRequest>>();
 
         var request = new CreateProductRequest
         {
-            CompanyId = Guid.NewGuid(),
             Name = "Widget",
             Sku = "WDG-001",
             UnitPriceAmount = 19.99m,
@@ -82,7 +83,7 @@ public class ProductsControllerTests
         var entity = new Product
         {
             Id = Guid.NewGuid(),
-            CompanyId = request.CompanyId,
+            CompanyId = Guid.Empty,
             Name = request.Name,
             Sku = request.Sku,
             UnitPrice = new Money(request.UnitPriceAmount, request.UnitPriceCurrency)
@@ -98,7 +99,7 @@ public class ProductsControllerTests
 
         mapper
             .Setup(m => m.Map<ProductDto>(entity))
-            .Returns(new ProductDto
+            .Returns(() => new ProductDto
             {
                 Id = entity.Id,
                 CompanyId = entity.CompanyId,
@@ -108,7 +109,7 @@ public class ProductsControllerTests
                 UnitPriceCurrency = entity.UnitPrice.Currency
             });
 
-        var controller = new ProductsController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new ProductsController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
         var result = await controller.Post(request);
 
@@ -117,6 +118,7 @@ public class ProductsControllerTests
         Assert.True(response.IsSuccess);
         Assert.NotNull(response.Data);
         Assert.Equal(request.Name, response.Data.Name);
+        Assert.Equal(companyId, response.Data.CompanyId);
 
         repository.Verify(r => r.AddAsync(entity), Times.Once);
     }
@@ -126,12 +128,12 @@ public class ProductsControllerTests
     {
         var repository = new Mock<IProductRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out _);
         var createValidator = new Mock<IValidator<CreateProductRequest>>();
         var updateValidator = new Mock<IValidator<UpdateProductRequest>>();
 
         var request = new CreateProductRequest
         {
-            CompanyId = Guid.NewGuid(),
             Name = string.Empty,
             Sku = string.Empty,
             UnitPriceAmount = -1m,
@@ -142,7 +144,7 @@ public class ProductsControllerTests
             .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult(new[] { new ValidationFailure("Name", "Name is required") }));
 
-        var controller = new ProductsController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new ProductsController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
         var result = await controller.Post(request);
 
@@ -158,13 +160,13 @@ public class ProductsControllerTests
     {
         var repository = new Mock<IProductRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out var companyId);
         var createValidator = new Mock<IValidator<CreateProductRequest>>();
         var updateValidator = new Mock<IValidator<UpdateProductRequest>>();
 
         var id = Guid.NewGuid();
         var request = new UpdateProductRequest
         {
-            CompanyId = Guid.NewGuid(),
             Name = "Updated Widget",
             Sku = "UPD-001",
             UnitPriceAmount = 49.99m,
@@ -174,7 +176,7 @@ public class ProductsControllerTests
         var existing = new Product
         {
             Id = id,
-            CompanyId = request.CompanyId,
+            CompanyId = companyId,
             Name = "Original Widget",
             Sku = "ORG-001",
             UnitPrice = new Money(10m, "USD")
@@ -193,14 +195,14 @@ public class ProductsControllerTests
             .Returns(new ProductDto
             {
                 Id = id,
-                CompanyId = request.CompanyId,
+                CompanyId = companyId,
                 Name = request.Name,
                 Sku = request.Sku,
                 UnitPriceAmount = request.UnitPriceAmount,
                 UnitPriceCurrency = request.UnitPriceCurrency
             });
 
-        var controller = new ProductsController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new ProductsController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
         var result = await controller.Put(id, request);
 
@@ -217,13 +219,13 @@ public class ProductsControllerTests
     {
         var repository = new Mock<IProductRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out _);
         var createValidator = new Mock<IValidator<CreateProductRequest>>();
         var updateValidator = new Mock<IValidator<UpdateProductRequest>>();
 
         var id = Guid.NewGuid();
         var request = new UpdateProductRequest
         {
-            CompanyId = Guid.NewGuid(),
             Name = string.Empty,
             Sku = string.Empty,
             UnitPriceAmount = -1m,
@@ -234,7 +236,7 @@ public class ProductsControllerTests
             .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult(new[] { new ValidationFailure("Name", "Name is required") }));
 
-        var controller = new ProductsController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new ProductsController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
         var result = await controller.Put(id, request);
 
@@ -250,6 +252,7 @@ public class ProductsControllerTests
     {
         var repository = new Mock<IProductRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out var companyId);
         var createValidator = new Mock<IValidator<CreateProductRequest>>();
         var updateValidator = new Mock<IValidator<UpdateProductRequest>>();
 
@@ -257,7 +260,7 @@ public class ProductsControllerTests
         var product = new Product
         {
             Id = id,
-            CompanyId = Guid.NewGuid(),
+            CompanyId = companyId,
             Name = "Delete Me",
             Sku = "DEL-001",
             UnitPrice = new Money(12m, "USD")
@@ -267,7 +270,7 @@ public class ProductsControllerTests
             .Setup(r => r.GetByIdAsync(id))
             .ReturnsAsync(product);
 
-        var controller = new ProductsController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new ProductsController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
         var result = await controller.Delete(id);
 
@@ -275,5 +278,13 @@ public class ProductsControllerTests
         var response = Assert.IsType<ApiResponse<object>>(ok.Value);
         Assert.True(response.IsSuccess);
         repository.Verify(r => r.DeleteAsync(product), Times.Once);
+    }
+
+    private static Mock<ICurrentUserService> MockCurrentUserWithSingleCompany(out Guid companyId)
+    {
+        companyId = Guid.NewGuid();
+        var currentUser = new Mock<ICurrentUserService>();
+        currentUser.SetupGet(c => c.CompanyIds).Returns(new List<Guid> { companyId });
+        return currentUser;
     }
 }

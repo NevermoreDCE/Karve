@@ -3,6 +3,7 @@ using FluentValidation;
 using Karve.Invoicing.Application.DTOs;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Responses;
+using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,6 +21,7 @@ public class UsersController : ControllerBase
 {
     private readonly IUserRepository _repository;
     private readonly IMapper _mapper;
+    private readonly ICurrentUserService _currentUser;
     private readonly IValidator<CreateUserRequest> _createValidator;
     private readonly IValidator<UpdateUserRequest> _updateValidator;
 
@@ -33,11 +35,13 @@ public class UsersController : ControllerBase
     public UsersController(
         IUserRepository repository,
         IMapper mapper,
+        ICurrentUserService currentUser,
         IValidator<CreateUserRequest> createValidator,
         IValidator<UpdateUserRequest> updateValidator)
     {
         _repository = repository;
         _mapper = mapper;
+        _currentUser = currentUser;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
     }
@@ -45,16 +49,20 @@ public class UsersController : ControllerBase
     /// <summary>
     /// Gets a paginated list of users for a specific company.
     /// </summary>
-    /// <param name="companyId">The company ID to filter users.</param>
     /// <param name="page">The page number (default: 1).</param>
     /// <param name="pageSize">The number of items per page (default: 20).</param>
     /// <param name="filter">Optional filter for user name or email.</param>
     /// <returns>A paginated list of users.</returns>
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<PagedResult<UserDto>>>> Get(Guid companyId, int page = 1, int pageSize = 20, string? filter = null)
+    public async Task<ActionResult<ApiResponse<PagedResult<UserDto>>>> Get(int page = 1, int pageSize = 20, string? filter = null)
     {
         try
         {
+            if (!TryGetSingleCompanyId(out var companyId, out var contextError))
+            {
+                return BadRequest(ApiResponse<PagedResult<UserDto>>.Failure(contextError));
+            }
+
             var result = await _repository.GetPagedAsync(companyId, page, pageSize, filter);
             var dtos = _mapper.Map<IEnumerable<UserDto>>(result.Items);
             var pagedDto = new PagedResult<UserDto>
@@ -181,5 +189,26 @@ public class UsersController : ControllerBase
         {
             return StatusCode(500, ApiResponse<object>.Failure("An error occurred while deleting the user."));
         }
+    }
+
+    private bool TryGetSingleCompanyId(out Guid companyId, out string error)
+    {
+        companyId = Guid.Empty;
+
+        if (_currentUser.CompanyIds.Count == 0)
+        {
+            error = "No company membership found for the current user.";
+            return false;
+        }
+
+        if (_currentUser.CompanyIds.Count > 1)
+        {
+            error = "Multiple company memberships detected. Company selection is not implemented yet.";
+            return false;
+        }
+
+        companyId = _currentUser.CompanyIds[0];
+        error = string.Empty;
+        return true;
     }
 }

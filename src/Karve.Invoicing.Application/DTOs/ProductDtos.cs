@@ -37,10 +37,6 @@ public class ProductDto
 public class CreateProductRequest
 {
     /// <summary>
-    /// The company ID the product belongs to.
-    /// </summary>
-    public Guid CompanyId { get; set; }
-    /// <summary>
     /// The name of the product.
     /// </summary>
     public string Name { get; set; } = string.Empty;
@@ -63,10 +59,6 @@ public class CreateProductRequest
 /// </summary>
 public class UpdateProductRequest
 {
-    /// <summary>
-    /// The company ID the product belongs to.
-    /// </summary>
-    public Guid CompanyId { get; set; }
     /// <summary>
     /// The name of the product.
     /// </summary>

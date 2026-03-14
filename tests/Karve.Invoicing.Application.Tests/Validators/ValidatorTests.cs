@@ -32,7 +32,6 @@ public class ValidatorTests
         var validator = new CreateCustomerRequestValidator();
         var request = new CreateCustomerRequest
         {
-            CompanyId = Guid.NewGuid(),
             Name = "John Doe",
             Email = "john@example.com",
             BillingAddress = "123 Main St"
@@ -47,7 +46,6 @@ public class ValidatorTests
         var validator = new CreateCustomerRequestValidator();
         var request = new CreateCustomerRequest
         {
-            CompanyId = Guid.NewGuid(),
             Name = "John Doe",
             Email = "not-an-email",
             BillingAddress = "123 Main St"
@@ -62,7 +60,6 @@ public class ValidatorTests
         var validator = new CreateProductRequestValidator();
         var request = new CreateProductRequest
         {
-            CompanyId = Guid.NewGuid(),
             Name = "Widget",
             Sku = "WDG-001",
             UnitPriceAmount = 19.99m,
@@ -78,7 +75,6 @@ public class ValidatorTests
         var validator = new CreateProductRequestValidator();
         var request = new CreateProductRequest
         {
-            CompanyId = Guid.NewGuid(),
             Name = "Widget",
             Sku = "WDG-001",
             UnitPriceAmount = -10.00m,
@@ -92,12 +88,12 @@ public class ValidatorTests
     public void CreateInvoiceRequest_Valid_ShouldPass()
     {
         var validator = new CreateInvoiceRequestValidator();
+        var invoiceDate = DateTime.UtcNow.AddSeconds(-1);
         var request = new CreateInvoiceRequest
         {
-            CompanyId = Guid.NewGuid(),
             CustomerId = Guid.NewGuid(),
-            InvoiceDate = DateTime.UtcNow,
-            DueDate = DateTime.UtcNow.AddDays(30),
+            InvoiceDate = invoiceDate,
+            DueDate = invoiceDate.AddDays(30),
             Status = InvoiceStatus.Draft
         };
         var result = validator.TestValidate(request);
@@ -110,7 +106,6 @@ public class ValidatorTests
         var validator = new CreateInvoiceRequestValidator();
         var request = new CreateInvoiceRequest
         {
-            CompanyId = Guid.NewGuid(),
             CustomerId = Guid.NewGuid(),
             InvoiceDate = DateTime.UtcNow,
             DueDate = DateTime.UtcNow.AddDays(-1),

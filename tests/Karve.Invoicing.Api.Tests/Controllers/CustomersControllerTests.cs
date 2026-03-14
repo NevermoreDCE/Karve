@@ -5,6 +5,7 @@ using Karve.Invoicing.Api.Controllers;
 using Karve.Invoicing.Application.DTOs;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Responses;
+using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Domain.Entities;
 using Karve.Invoicing.Domain.ValueObjects;
 using Microsoft.AspNetCore.Mvc;
@@ -19,10 +20,10 @@ public class CustomersControllerTests
     {
         var repository = new Mock<ICustomerRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out var companyId);
         var createValidator = new Mock<IValidator<CreateCustomerRequest>>();
         var updateValidator = new Mock<IValidator<UpdateCustomerRequest>>();
 
-        var companyId = Guid.NewGuid();
         var customers = new List<Customer>
         {
             new() { Id = Guid.NewGuid(), CompanyId = companyId, Name = "Customer 1", Email = new EmailAddress("one@test.com"), BillingAddress = "Address 1" },
@@ -50,9 +51,9 @@ public class CustomersControllerTests
                 BillingAddress = c.BillingAddress
             }).ToList());
 
-        var controller = new CustomersController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new CustomersController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
-        var result = await controller.Get(companyId, 1, 20, null);
+        var result = await controller.Get(1, 20, null);
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<ApiResponse<PagedResult<CustomerDto>>>(ok.Value);
@@ -66,12 +67,12 @@ public class CustomersControllerTests
     {
         var repository = new Mock<ICustomerRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out var companyId);
         var createValidator = new Mock<IValidator<CreateCustomerRequest>>();
         var updateValidator = new Mock<IValidator<UpdateCustomerRequest>>();
 
         var request = new CreateCustomerRequest
         {
-            CompanyId = Guid.NewGuid(),
             Name = "John Doe",
             Email = "john@example.com",
             BillingAddress = "123 Main St"
@@ -80,7 +81,7 @@ public class CustomersControllerTests
         var entity = new Customer
         {
             Id = Guid.NewGuid(),
-            CompanyId = request.CompanyId,
+            CompanyId = Guid.Empty,
             Name = request.Name,
             Email = new EmailAddress(request.Email),
             BillingAddress = request.BillingAddress
@@ -96,7 +97,7 @@ public class CustomersControllerTests
 
         mapper
             .Setup(m => m.Map<CustomerDto>(entity))
-            .Returns(new CustomerDto
+            .Returns(() => new CustomerDto
             {
                 Id = entity.Id,
                 CompanyId = entity.CompanyId,
@@ -105,7 +106,7 @@ public class CustomersControllerTests
                 BillingAddress = entity.BillingAddress
             });
 
-        var controller = new CustomersController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new CustomersController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
         var result = await controller.Post(request);
 
@@ -114,6 +115,7 @@ public class CustomersControllerTests
         Assert.True(response.IsSuccess);
         Assert.NotNull(response.Data);
         Assert.Equal(request.Name, response.Data.Name);
+        Assert.Equal(companyId, response.Data.CompanyId);
 
         repository.Verify(r => r.AddAsync(entity), Times.Once);
     }
@@ -123,15 +125,16 @@ public class CustomersControllerTests
     {
         var repository = new Mock<ICustomerRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out _);
         var createValidator = new Mock<IValidator<CreateCustomerRequest>>();
         var updateValidator = new Mock<IValidator<UpdateCustomerRequest>>();
 
-        var request = new CreateCustomerRequest { CompanyId = Guid.NewGuid(), Name = string.Empty, Email = "bad", BillingAddress = string.Empty };
+        var request = new CreateCustomerRequest { Name = string.Empty, Email = "bad", BillingAddress = string.Empty };
         createValidator
             .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult(new[] { new ValidationFailure("Name", "Name is required") }));
 
-        var controller = new CustomersController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new CustomersController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
         var result = await controller.Post(request);
 
@@ -147,13 +150,13 @@ public class CustomersControllerTests
     {
         var repository = new Mock<ICustomerRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out var companyId);
         var createValidator = new Mock<IValidator<CreateCustomerRequest>>();
         var updateValidator = new Mock<IValidator<UpdateCustomerRequest>>();
 
         var id = Guid.NewGuid();
         var request = new UpdateCustomerRequest
         {
-            CompanyId = Guid.NewGuid(),
             Name = "Updated Customer",
             Email = "updated@example.com",
             BillingAddress = "Updated Address"
@@ -162,7 +165,7 @@ public class CustomersControllerTests
         var existing = new Customer
         {
             Id = id,
-            CompanyId = request.CompanyId,
+            CompanyId = companyId,
             Name = "Original",
             Email = new EmailAddress("original@example.com"),
             BillingAddress = "Original Address"
@@ -181,13 +184,13 @@ public class CustomersControllerTests
             .Returns(new CustomerDto
             {
                 Id = id,
-                CompanyId = request.CompanyId,
+                CompanyId = companyId,
                 Name = request.Name,
                 Email = request.Email,
                 BillingAddress = request.BillingAddress
             });
 
-        var controller = new CustomersController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new CustomersController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
         var result = await controller.Put(id, request);
 
@@ -204,16 +207,17 @@ public class CustomersControllerTests
     {
         var repository = new Mock<ICustomerRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out _);
         var createValidator = new Mock<IValidator<CreateCustomerRequest>>();
         var updateValidator = new Mock<IValidator<UpdateCustomerRequest>>();
 
         var id = Guid.NewGuid();
-        var request = new UpdateCustomerRequest { CompanyId = Guid.NewGuid(), Name = string.Empty, Email = "bad", BillingAddress = string.Empty };
+        var request = new UpdateCustomerRequest { Name = string.Empty, Email = "bad", BillingAddress = string.Empty };
         updateValidator
             .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult(new[] { new ValidationFailure("Name", "Name is required") }));
 
-        var controller = new CustomersController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new CustomersController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
         var result = await controller.Put(id, request);
 
@@ -229,6 +233,7 @@ public class CustomersControllerTests
     {
         var repository = new Mock<ICustomerRepository>();
         var mapper = new Mock<IMapper>();
+        var currentUser = MockCurrentUserWithSingleCompany(out var companyId);
         var createValidator = new Mock<IValidator<CreateCustomerRequest>>();
         var updateValidator = new Mock<IValidator<UpdateCustomerRequest>>();
 
@@ -236,7 +241,7 @@ public class CustomersControllerTests
         var customer = new Customer
         {
             Id = id,
-            CompanyId = Guid.NewGuid(),
+            CompanyId = companyId,
             Name = "Delete Me",
             Email = new EmailAddress("delete@example.com"),
             BillingAddress = "Delete Address"
@@ -246,7 +251,7 @@ public class CustomersControllerTests
             .Setup(r => r.GetByIdAsync(id))
             .ReturnsAsync(customer);
 
-        var controller = new CustomersController(repository.Object, mapper.Object, createValidator.Object, updateValidator.Object);
+        var controller = new CustomersController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
 
         var result = await controller.Delete(id);
 
@@ -254,5 +259,13 @@ public class CustomersControllerTests
         var response = Assert.IsType<ApiResponse<object>>(ok.Value);
         Assert.True(response.IsSuccess);
         repository.Verify(r => r.DeleteAsync(customer), Times.Once);
+    }
+
+    private static Mock<ICurrentUserService> MockCurrentUserWithSingleCompany(out Guid companyId)
+    {
+        companyId = Guid.NewGuid();
+        var currentUser = new Mock<ICurrentUserService>();
+        currentUser.SetupGet(c => c.CompanyIds).Returns(new List<Guid> { companyId });
+        return currentUser;
     }
 }

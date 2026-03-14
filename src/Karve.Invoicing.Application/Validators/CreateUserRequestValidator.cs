@@ -15,9 +15,6 @@ public class CreateUserRequestValidator : AbstractValidator<CreateUserRequest>
             .NotEmpty().WithMessage("Email is required.")
             .EmailAddress().WithMessage("A valid email address is required.");
 
-        RuleFor(x => x.CompanyId)
-            .NotEmpty().WithMessage("Company ID is required.");
-
         RuleFor(x => x.Role)
             .NotEmpty().WithMessage("Role is required.")
             .Must(role => role == "Admin" || role == "User" || role == "Viewer")

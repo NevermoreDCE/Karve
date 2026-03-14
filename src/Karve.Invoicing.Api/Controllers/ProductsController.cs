@@ -3,6 +3,7 @@ using FluentValidation;
 using Karve.Invoicing.Application.DTOs;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Responses;
+using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Domain.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,6 +21,7 @@ public class ProductsController : ControllerBase
 {
     private readonly IProductRepository _repository;
     private readonly IMapper _mapper;
+    private readonly ICurrentUserService _currentUser;
     private readonly IValidator<CreateProductRequest> _createValidator;
     private readonly IValidator<UpdateProductRequest> _updateValidator;
 
@@ -33,11 +35,13 @@ public class ProductsController : ControllerBase
     public ProductsController(
         IProductRepository repository,
         IMapper mapper,
+        ICurrentUserService currentUser,
         IValidator<CreateProductRequest> createValidator,
         IValidator<UpdateProductRequest> updateValidator)
     {
         _repository = repository;
         _mapper = mapper;
+        _currentUser = currentUser;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
     }
@@ -45,16 +49,20 @@ public class ProductsController : ControllerBase
     /// <summary>
     /// Gets a paginated list of products for a specific company.
     /// </summary>
-    /// <param name="companyId">The company ID to filter products.</param>
     /// <param name="page">The page number (default: 1).</param>
     /// <param name="pageSize">The number of items per page (default: 20).</param>
     /// <param name="filter">Optional filter for product name or SKU.</param>
     /// <returns>A paginated list of products.</returns>
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<PagedResult<ProductDto>>>> Get(Guid companyId, int page = 1, int pageSize = 20, string? filter = null)
+    public async Task<ActionResult<ApiResponse<PagedResult<ProductDto>>>> Get(int page = 1, int pageSize = 20, string? filter = null)
     {
         try
         {
+            if (!TryGetSingleCompanyId(out var companyId, out var contextError))
+            {
+                return BadRequest(ApiResponse<PagedResult<ProductDto>>.Failure(contextError));
+            }
+
             var result = await _repository.GetPagedAsync(companyId, page, pageSize, filter);
             var dtos = _mapper.Map<IEnumerable<ProductDto>>(result.Items);
             var pagedDto = new PagedResult<ProductDto>
@@ -114,6 +122,12 @@ public class ProductsController : ControllerBase
             }
 
             var product = _mapper.Map<Product>(request);
+            if (!TryGetSingleCompanyId(out var companyId, out var contextError))
+            {
+                return BadRequest(ApiResponse<ProductDto>.Failure(contextError));
+            }
+
+            product.CompanyId = companyId;
             await _repository.AddAsync(product);
             var dto = _mapper.Map<ProductDto>(product);
             return CreatedAtAction(nameof(Get), new { id = product.Id }, ApiResponse<ProductDto>.Success(dto));
@@ -148,6 +162,10 @@ public class ProductsController : ControllerBase
             }
 
             _mapper.Map(request, existingProduct);
+            if (TryGetSingleCompanyId(out var companyId, out _))
+            {
+                existingProduct.CompanyId = companyId;
+            }
             await _repository.UpdateAsync(existingProduct);
             var dto = _mapper.Map<ProductDto>(existingProduct);
             return Ok(ApiResponse<ProductDto>.Success(dto));
@@ -181,5 +199,26 @@ public class ProductsController : ControllerBase
         {
             return StatusCode(500, ApiResponse<object>.Failure("An error occurred while deleting the product."));
         }
+    }
+
+    private bool TryGetSingleCompanyId(out Guid companyId, out string error)
+    {
+        companyId = Guid.Empty;
+
+        if (_currentUser.CompanyIds.Count == 0)
+        {
+            error = "No company membership found for the current user.";
+            return false;
+        }
+
+        if (_currentUser.CompanyIds.Count > 1)
+        {
+            error = "Multiple company memberships detected. Company selection is not implemented yet.";
+            return false;
+        }
+
+        companyId = _currentUser.CompanyIds[0];
+        error = string.Empty;
+        return true;
     }
 }

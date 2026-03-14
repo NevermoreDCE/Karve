@@ -8,9 +8,6 @@ public class UpdatePaymentRequestValidator : AbstractValidator<UpdatePaymentRequ
 {
     public UpdatePaymentRequestValidator()
     {
-        RuleFor(x => x.CompanyId)
-            .NotEmpty().WithMessage("Company ID is required.");
-
         RuleFor(x => x.InvoiceId)
             .NotEmpty().WithMessage("Invoice ID is required.");
 
