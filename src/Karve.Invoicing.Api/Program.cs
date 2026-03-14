@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Identity.Web;
 using Microsoft.OpenApi;
+using Microsoft.Extensions.Logging;
 using Scalar.AspNetCore;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -37,6 +38,14 @@ public partial class Program
         builder.Services.Configure<OpenTelemetryOptions>(
             builder.Configuration.GetSection(OpenTelemetryOptions.SectionName));
         builder.AddKarveOpenTelemetry();
+        builder.Logging.Configure(options =>
+        {
+            options.ActivityTrackingOptions = ActivityTrackingOptions.TraceId
+                | ActivityTrackingOptions.SpanId
+                | ActivityTrackingOptions.ParentId
+                | ActivityTrackingOptions.Baggage
+                | ActivityTrackingOptions.Tags;
+        });
 
         builder.Services.AddInvoicingInfrastructure(options =>
             options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")!));
@@ -177,6 +186,7 @@ public partial class Program
         }
 
         app.UseHttpsRedirection();
+    app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseMiddleware<ExceptionHandlingMiddleware>();
         app.UseCors("AllowLocalhost3000");
         app.UseAuthentication();
