@@ -4,6 +4,7 @@ import axios, {
   type AxiosResponse,
   type AxiosError,
 } from "axios";
+import { useTenantStore } from "../state/tenantStore";
 
 function requiredEnv(name: string): string {
   const value = import.meta.env[name as keyof ImportMetaEnv];
@@ -56,6 +57,12 @@ export function configureApiClient(
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+
+      const selectedCompanyId = useTenantStore.getState().selectedCompanyId;
+      if (selectedCompanyId) {
+        config.headers["X-Company-Id"] = selectedCompanyId;
+      }
+
       return config;
     },
     (error: unknown) => Promise.reject(error)

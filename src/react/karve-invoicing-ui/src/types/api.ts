@@ -80,6 +80,11 @@ export interface ProductDto {
   unitPriceCurrency: string;
 }
 
+export interface CompanyDto {
+  id: string;
+  name: string;
+}
+
 // ─── Request models (mirror Application.DTOs request types) ──────────────────
 
 export interface CreateInvoiceRequest {
