@@ -9,15 +9,18 @@ namespace Karve.Invoicing.Api.Services;
 public sealed class CurrentUserService : ICurrentUserService
 {
     private static readonly IReadOnlyList<Guid> EmptyCompanyIds = Array.Empty<Guid>();
+    private readonly ICompanyMembershipService _companyMembershipService;
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CurrentUserService"/> class.
     /// </summary>
     /// <param name="httpContextAccessor">Accessor for the active HTTP context.</param>
-    public CurrentUserService(IHttpContextAccessor httpContextAccessor)
+    /// <param name="companyMembershipService">Service used to resolve user company memberships.</param>
+    public CurrentUserService(IHttpContextAccessor httpContextAccessor, ICompanyMembershipService companyMembershipService)
     {
         _httpContextAccessor = httpContextAccessor;
+        _companyMembershipService = companyMembershipService;
     }
 
     /// <summary>
@@ -36,11 +39,25 @@ public sealed class CurrentUserService : ICurrentUserService
         GetClaimValue("email") ??
         GetClaimValue(ClaimTypes.Email);
 
-    // Company IDs are loaded in later step when membership service is implemented.
     /// <summary>
     /// Gets the company IDs for the current user.
     /// </summary>
-    public IReadOnlyList<Guid> CompanyIds => EmptyCompanyIds;
+    public IReadOnlyList<Guid> CompanyIds
+    {
+        get
+        {
+            if (!Guid.TryParse(UserId, out var localUserId))
+            {
+                return EmptyCompanyIds;
+            }
+
+            return _companyMembershipService
+                .GetCompanyIdsForUserAsync(localUserId)
+                .ConfigureAwait(false)
+                .GetAwaiter()
+                .GetResult();
+        }
+    }
 
     private string? GetClaimValue(string claimType)
     {

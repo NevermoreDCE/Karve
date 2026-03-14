@@ -6,9 +6,12 @@ using Karve.Invoicing.Application;
 using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Authorization;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Identity.Web;
 using Scalar.AspNetCore;
 
@@ -34,8 +37,16 @@ public partial class Program
             .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+        builder.Services.AddAuthorization(options =>
+        {
+            options.AddPolicy("RequireCompanyMembership", policy =>
+                policy.RequireAssertion(context => HasCompanyMembership(context)));
+        });
 
-        builder.Services.AddControllers();
+        builder.Services.AddControllers(options =>
+        {
+            options.Filters.Add(new AuthorizeFilter("RequireCompanyMembership"));
+        });
         builder.Services.AddAutoMapper(typeof(AssemblyMarker));
         builder.Services.AddValidatorsFromAssemblyContaining<AssemblyMarker>();
         builder.Services.AddEndpointsApiExplorer();
@@ -92,5 +103,23 @@ public partial class Program
         }
 
         app.Run();
+    }
+
+    private static bool HasCompanyMembership(AuthorizationHandlerContext context)
+    {
+        var httpContext = context.Resource switch
+        {
+            HttpContext directContext => directContext,
+            AuthorizationFilterContext mvcContext => mvcContext.HttpContext,
+            _ => null
+        };
+
+        if (httpContext is null)
+        {
+            return false;
+        }
+
+        var currentUserService = httpContext.RequestServices.GetService<ICurrentUserService>();
+        return currentUserService?.CompanyIds.Any() == true;
     }
 }
