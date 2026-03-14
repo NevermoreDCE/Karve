@@ -243,6 +243,35 @@ builder.Services.AddOpenApi(options =>
 ### **J2 — Add “Authorize” button in Scalar**
 Configure OAuth settings.
 
+### **J3 - Local PKCE setup values (Azure AD + Scalar)**
+Use these exact mappings in `src/Karve.Invoicing.Api/appsettings.json`:
+
+```json
+"OpenApi": {
+    "OAuthClientId": "<SPA-APP-REGISTRATION-CLIENT-ID>",
+    "OAuthScope": "api://<API-APP-ID-URI-OR-API-CLIENT-ID>/user_impersonation"
+}
+```
+
+How to choose the values:
+- `OpenApi:OAuthClientId`: the **client ID of your SPA app registration** (the app users sign in to from browser/Scalar).
+- `OpenApi:OAuthScope`: the API delegated scope exposed by your API app registration, typically `api://<api-client-id>/user_impersonation`.
+
+Azure App Registration checklist for local Scalar testing:
+- API app registration:
+    - `Expose an API` configured with App ID URI (for example `api://<api-client-id>`).
+    - Delegated scope `user_impersonation` exists.
+- SPA app registration:
+    - Has a SPA redirect URI used by Scalar OAuth flow.
+    - Has delegated API permission for `user_impersonation`.
+    - Admin/user consent granted for that delegated permission.
+- API authorization:
+    - API validates tokens for the same tenant and audience configured in `AzureAd`.
+
+Notes:
+- If your API App ID URI is customized (not `api://<api-client-id>`), use that exact URI prefix in `OpenApi:OAuthScope`.
+- If you set `flow.RedirectUri` in `Program.cs`, the same URI must be added as a SPA redirect URI in Azure AD.
+
 ---
 
 # 🎉 Step 3 Complete  
