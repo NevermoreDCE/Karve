@@ -56,6 +56,16 @@
   }
 }
 
+@keyframes karve-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 #center {
   display: flex;
   flex-direction: column;

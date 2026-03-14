@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import toast from "react-hot-toast";
 import { InvoiceForm, type InvoiceFormValues } from "../components/InvoiceForm";
+import { LoadingSpinner } from "../components/LoadingSpinner";
 import {
   useDeleteInvoice,
   useInvoice,
@@ -41,6 +43,7 @@ export function InvoiceDetailPage() {
     }
 
     await deleteInvoiceMutation.mutateAsync(invoiceId);
+    toast.success("Invoice deleted.");
     navigate("/invoices");
   };
 
@@ -54,7 +57,7 @@ export function InvoiceDetailPage() {
   }
 
   if (invoiceQuery.isLoading) {
-    return <p>Loading invoice details...</p>;
+    return <LoadingSpinner label="Loading invoice details..." />;
   }
 
   if (invoiceQuery.isError) {

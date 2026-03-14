@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useEffect } from "react";
+import toast from "react-hot-toast";
+import { LoadingSpinner } from "../components/LoadingSpinner";
 import { ProductForm, type ProductFormValues } from "../components/ProductForm";
 import {
   useCreateProduct,
@@ -55,6 +58,18 @@ export function ProductsPage() {
     resetForm();
   };
 
+  useEffect(() => {
+    if (createProductMutation.isSuccess) {
+      toast.success("Product created.");
+    }
+  }, [createProductMutation.isSuccess]);
+
+  useEffect(() => {
+    if (updateProductMutation.isSuccess) {
+      toast.success("Product updated.");
+    }
+  }, [updateProductMutation.isSuccess]);
+
   return (
     <section>
       <h1>Products</h1>
@@ -72,7 +87,7 @@ export function ProductsPage() {
         />
       </div>
 
-      {productsQuery.isLoading ? <p>Loading products...</p> : null}
+      {productsQuery.isLoading ? <LoadingSpinner label="Loading products..." /> : null}
       {productsQuery.isError ? <p role="alert">{productsQuery.error.message}</p> : null}
 
       {!productsQuery.isLoading && productsQuery.data ? (

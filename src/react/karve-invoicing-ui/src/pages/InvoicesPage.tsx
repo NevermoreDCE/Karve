@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import toast from "react-hot-toast";
 import { InvoiceForm, type InvoiceFormValues } from "../components/InvoiceForm";
+import { LoadingSpinner } from "../components/LoadingSpinner";
 import { useCreateInvoice, useInvoices } from "../hooks/useInvoices";
 
 function toDateInputValue(isoDate: string): string {
@@ -31,6 +33,12 @@ export function InvoicesPage() {
     setShowCreate(false);
   };
 
+  useEffect(() => {
+    if (createInvoiceMutation.isSuccess) {
+      toast.success("Invoice created.");
+    }
+  }, [createInvoiceMutation.isSuccess]);
+
   return (
     <section>
       <h1>Invoices</h1>
@@ -58,7 +66,7 @@ export function InvoicesPage() {
         </div>
       ) : null}
 
-      {invoicesQuery.isLoading ? <p>Loading invoices...</p> : null}
+      {invoicesQuery.isLoading ? <LoadingSpinner label="Loading invoices..." /> : null}
       {invoicesQuery.isError ? <p role="alert">{invoicesQuery.error.message}</p> : null}
 
       {!invoicesQuery.isLoading && invoicesQuery.data ? (

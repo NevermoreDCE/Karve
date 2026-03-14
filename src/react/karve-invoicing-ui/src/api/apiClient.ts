@@ -4,6 +4,7 @@ import axios, {
   type AxiosResponse,
   type AxiosError,
 } from "axios";
+import toast from "react-hot-toast";
 import { useTenantStore } from "../state/tenantStore";
 
 function requiredEnv(name: string): string {
@@ -76,7 +77,12 @@ export function configureApiClient(
       if (status === 401) {
         onUnauthorized();
       } else if (status === 403) {
+        toast.error("Access denied for this company or resource.");
         console.error("[API] Access denied (403):", error.config?.url);
+      } else if (status && status >= 500) {
+        toast.error("Server error. Please try again shortly.");
+      } else if (status && status >= 400) {
+        toast.error("Request failed. Please check the input and retry.");
       }
       return Promise.reject(error);
     }

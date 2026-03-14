@@ -1,8 +1,11 @@
 import { useState } from "react";
+import { useEffect } from "react";
+import toast from "react-hot-toast";
 import {
   CustomerForm,
   type CustomerFormValues,
 } from "../components/CustomerForm";
+import { LoadingSpinner } from "../components/LoadingSpinner";
 import {
   useCreateCustomer,
   useCustomers,
@@ -55,6 +58,18 @@ export function CustomersPage() {
     resetForm();
   };
 
+  useEffect(() => {
+    if (createCustomerMutation.isSuccess) {
+      toast.success("Customer created.");
+    }
+  }, [createCustomerMutation.isSuccess]);
+
+  useEffect(() => {
+    if (updateCustomerMutation.isSuccess) {
+      toast.success("Customer updated.");
+    }
+  }, [updateCustomerMutation.isSuccess]);
+
   return (
     <section>
       <h1>Customers</h1>
@@ -72,7 +87,7 @@ export function CustomersPage() {
         />
       </div>
 
-      {customersQuery.isLoading ? <p>Loading customers...</p> : null}
+      {customersQuery.isLoading ? <LoadingSpinner label="Loading customers..." /> : null}
       {customersQuery.isError ? <p role="alert">{customersQuery.error.message}</p> : null}
 
       {!customersQuery.isLoading && customersQuery.data ? (
