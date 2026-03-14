@@ -7,6 +7,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { InvoicesPage } from './pages/InvoicesPage'
+import { InvoiceDetailPage } from './pages/InvoiceDetailPage'
 import { CustomersPage } from './pages/CustomersPage'
 import { ProductsPage } from './pages/ProductsPage'
 import './App.css'
@@ -33,6 +34,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <InvoicesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/invoices/:id"
+                element={
+                  <ProtectedRoute>
+                    <InvoiceDetailPage />
                   </ProtectedRoute>
                 }
               />
