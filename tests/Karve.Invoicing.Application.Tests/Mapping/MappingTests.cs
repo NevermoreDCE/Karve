@@ -4,6 +4,7 @@ using Karve.Invoicing.Application.Mapping;
 using Karve.Invoicing.Domain.Entities;
 using Karve.Invoicing.Domain.Enums;
 using Karve.Invoicing.Domain.ValueObjects;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Karve.Invoicing.Application.Tests.Mapping;
@@ -18,7 +19,7 @@ public class MappingTests
         {
             cfg.AddProfile<DomainToDtoProfile>();
             cfg.AddProfile<DtoToDomainProfile>();
-        });
+        }, NullLoggerFactory.Instance);
         _mapper = config.CreateMapper();
     }
 

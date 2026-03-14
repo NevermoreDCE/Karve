@@ -1,6 +1,7 @@
 
 using FluentValidation;
 using Karve.Invoicing.Api.Middleware;
+using Karve.Invoicing.Api.Observability;
 using Karve.Invoicing.Api.Services;
 using Karve.Invoicing.Application;
 using Karve.Invoicing.Application.Services;
@@ -16,6 +17,7 @@ using Microsoft.Identity.Web;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 
 /// <summary>
 /// Entry point for the Karve Invoicing API application.
@@ -31,6 +33,10 @@ public partial class Program
         var builder = WebApplication.CreateBuilder(args);
 
         // Add services to the container.
+
+        builder.Services.Configure<OpenTelemetryOptions>(
+            builder.Configuration.GetSection(OpenTelemetryOptions.SectionName));
+        builder.AddKarveOpenTelemetry();
 
         builder.Services.AddInvoicingInfrastructure(options =>
             options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")!));
@@ -93,7 +99,7 @@ public partial class Program
         {
             options.Filters.Add(new AuthorizeFilter("RequireCompanyMembership"));
         });
-        builder.Services.AddAutoMapper(typeof(AssemblyMarker));
+        builder.Services.AddAutoMapper(_ => { }, typeof(AssemblyMarker).GetTypeInfo().Assembly);
         builder.Services.AddValidatorsFromAssemblyContaining<AssemblyMarker>();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddOpenApi(options =>
