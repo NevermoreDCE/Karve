@@ -1,11 +1,15 @@
 
 using FluentValidation;
 using Karve.Invoicing.Api.Middleware;
+using Karve.Invoicing.Api.Services;
 using Karve.Invoicing.Application;
+using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Infrastructure;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Identity.Web;
 using Scalar.AspNetCore;
 
 /// <summary>
@@ -25,6 +29,11 @@ public partial class Program
 
         builder.Services.AddInvoicingInfrastructure(options =>
             options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")!));
+
+        builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
         builder.Services.AddControllers();
         builder.Services.AddAutoMapper(typeof(AssemblyMarker));
@@ -69,6 +78,8 @@ public partial class Program
         app.UseHttpsRedirection();
         app.UseMiddleware<ExceptionHandlingMiddleware>();
         app.UseCors("AllowLocalhost3000");
+        app.UseAuthentication();
+        app.UseAuthorization();
         app.MapHealthChecks("/health");
         app.MapControllers();
 

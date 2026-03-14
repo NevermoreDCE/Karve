@@ -4,6 +4,7 @@ using Karve.Invoicing.Application.DTOs;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Responses;
 using Karve.Invoicing.Domain.Entities;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Karve.Invoicing.Api.Controllers;
@@ -12,6 +13,7 @@ namespace Karve.Invoicing.Api.Controllers;
 /// Controller for managing products.
 /// </summary>
 [ApiController]
+[Authorize]
 [ApiVersion("1.0")]
 [Route("api/[controller]")]
 public class ProductsController : ControllerBase
