@@ -1,6 +1,7 @@
 using Karve.Invoicing.Domain.Entities;
 using Karve.Invoicing.Domain.Enums;
 using Karve.Invoicing.Domain.ValueObjects;
+using Microsoft.EntityFrameworkCore;
 
 namespace Karve.Invoicing.Infrastructure;
 
@@ -8,7 +9,7 @@ public static class DataSeeder
 {
     public static void Seed(InvoicingDbContext db)
     {
-        if (db.Companies.Any())
+        if (db.Companies.IgnoreQueryFilters().Any())
             return;
 
         // ── Companies ───────────────────────────────────────────────────────────

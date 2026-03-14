@@ -1,11 +1,20 @@
 using Microsoft.EntityFrameworkCore;
+using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Domain.Entities;
 
 namespace Karve.Invoicing.Infrastructure;
 
 public class InvoicingDbContext : DbContext
 {
-    public InvoicingDbContext(DbContextOptions<InvoicingDbContext> options) : base(options) { }
+    private static readonly IReadOnlyList<Guid> EmptyCompanyIds = Array.Empty<Guid>();
+    private readonly ICurrentUserService? _currentUser;
+
+    public InvoicingDbContext(
+        DbContextOptions<InvoicingDbContext> options,
+        ICurrentUserService? currentUser = null) : base(options)
+    {
+        _currentUser = currentUser;
+    }
 
     public DbSet<Company> Companies { get; set; }
     public DbSet<AppUser> Users { get; set; }
@@ -15,6 +24,9 @@ public class InvoicingDbContext : DbContext
     public DbSet<Invoice> Invoices { get; set; }
     public DbSet<InvoiceLineItem> InvoiceLineItems { get; set; }
     public DbSet<Payment> Payments { get; set; }
+
+    private IReadOnlyList<Guid> CurrentCompanyIds =>
+        _currentUser?.CompanyIds ?? EmptyCompanyIds;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -46,6 +58,23 @@ public class InvoicingDbContext : DbContext
         {
             email.Property(e => e.Value).HasColumnName("Email").IsRequired();
         });
+
+        // Global tenant filters. If there is no authenticated user/company membership,
+        // CurrentCompanyIds is empty and these predicates return no rows.
+        modelBuilder.Entity<Company>()
+            .HasQueryFilter(e => CurrentCompanyIds.Contains(e.Id));
+
+        modelBuilder.Entity<Customer>()
+            .HasQueryFilter(e => CurrentCompanyIds.Contains(e.CompanyId));
+
+        modelBuilder.Entity<Product>()
+            .HasQueryFilter(e => CurrentCompanyIds.Contains(e.CompanyId));
+
+        modelBuilder.Entity<Invoice>()
+            .HasQueryFilter(e => CurrentCompanyIds.Contains(e.CompanyId));
+
+        modelBuilder.Entity<Payment>()
+            .HasQueryFilter(e => CurrentCompanyIds.Contains(e.CompanyId));
 
         // Configure relationships
         modelBuilder.Entity<CompanyUser>()
