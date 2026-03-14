@@ -24,6 +24,7 @@ public sealed class CompanyMembershipService : ICompanyMembershipService
     {
         return await _dbContext.CompanyUsers
             .AsNoTracking()
+            .IgnoreQueryFilters()
             .Where(cu => cu.UserId == userId)
             .Select(cu => cu.CompanyId)
             .Distinct()
@@ -35,6 +36,7 @@ public sealed class CompanyMembershipService : ICompanyMembershipService
     {
         return await _dbContext.CompanyUsers
             .AsNoTracking()
+            .IgnoreQueryFilters()
             .AnyAsync(cu => cu.UserId == userId && cu.CompanyId == companyId);
     }
 }
