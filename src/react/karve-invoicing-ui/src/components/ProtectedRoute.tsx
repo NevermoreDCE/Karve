@@ -1,4 +1,5 @@
-import { Navigate, type ReactNode } from "react-router-dom";
+import type { ReactNode } from "react";
+import { Navigate } from "react-router-dom";
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
 import { InteractionStatus } from "@azure/msal-browser";
 

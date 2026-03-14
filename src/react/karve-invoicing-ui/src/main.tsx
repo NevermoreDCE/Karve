@@ -3,8 +3,11 @@ import { createRoot } from 'react-dom/client'
 import { PublicClientApplication } from '@azure/msal-browser'
 import { MsalProvider } from '@azure/msal-react'
 import { msalConfig } from './auth/authConfig'
+import { initializeOpenTelemetry } from './observability/otel'
 import './index.css'
 import App from './App.tsx'
+
+initializeOpenTelemetry()
 
 const msalInstance = new PublicClientApplication(msalConfig)
 

@@ -3,6 +3,10 @@ import { useMsal, useIsAuthenticated } from "@azure/msal-react";
 import { InteractionRequiredAuthError } from "@azure/msal-browser";
 import { apiLoginRequest } from "./authConfig";
 import { configureApiClient } from "../api/apiClient";
+import {
+  clearTelemetryUserContext,
+  setTelemetryUserContext,
+} from "../observability/otel";
 
 interface AuthContextValue {
   isAuthenticated: boolean;
@@ -12,6 +16,14 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function readClaim(
+  claims: Record<string, unknown> | undefined,
+  name: string
+): string | null {
+  const value = claims?.[name];
+  return typeof value === "string" ? value : null;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { instance, accounts } = useMsal();
@@ -52,6 +64,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    const account = accounts[0];
+    if (!isAuthenticated || !account) {
+      clearTelemetryUserContext();
+      return;
+    }
+
+    const claims = (account.idTokenClaims ?? {}) as Record<string, unknown>;
+
+    setTelemetryUserContext({
+      userId:
+        readClaim(claims, "oid") ??
+        readClaim(claims, "sub") ??
+        account.homeAccountId ??
+        null,
+      email:
+        readClaim(claims, "preferred_username") ??
+        readClaim(claims, "email") ??
+        account.username ??
+        null,
+      displayName:
+        readClaim(claims, "name") ??
+        (typeof account.name === "string" ? account.name : null),
+    });
+  }, [accounts, isAuthenticated]);
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, login, logout, getAccessToken }}>
