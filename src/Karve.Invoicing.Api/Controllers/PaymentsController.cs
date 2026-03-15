@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Diagnostics;
+using Karve.Invoicing.Api.Observability;
 
 namespace Karve.Invoicing.Api.Controllers;
 
@@ -134,11 +136,18 @@ public class PaymentsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ApiResponse<PaymentDto>>> Post([FromBody] CreatePaymentRequest request)
     {
+        using var activity = KarveActivitySource.Instance.StartActivity("payment.process", ActivityKind.Internal);
+        activity?.SetTag("payment.invoice_id", request.InvoiceId);
+        activity?.SetTag("payment.method", request.Method.ToString());
+        activity?.SetTag("payment.amount", request.Amount);
+        activity?.SetTag("payment.currency", request.Currency);
+
         try
         {
             var validationResult = await _createValidator.ValidateAsync(request);
             if (!validationResult.IsValid)
             {
+                activity?.SetStatus(ActivityStatusCode.Error, "Payment validation failed.");
                 return BadRequest(ApiResponse<PaymentDto>.Failure(string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage))));
             }
 
@@ -150,11 +159,26 @@ public class PaymentsController : ControllerBase
 
             payment.CompanyId = companyId;
             await _repository.AddAsync(payment);
+
+            activity?.SetTag("payment.id", payment.Id);
+            activity?.SetTag("payment.company_id", payment.CompanyId);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+
             var dto = _mapper.Map<PaymentDto>(payment);
             return CreatedAtAction(nameof(Get), new { id = payment.Id }, ApiResponse<PaymentDto>.Success(dto));
         }
         catch (Exception ex)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.AddEvent(new ActivityEvent(
+                "exception",
+                tags: new ActivityTagsCollection
+                {
+                    ["exception.type"] = ex.GetType().FullName,
+                    ["exception.message"] = ex.Message,
+                    ["exception.stacktrace"] = ex.StackTrace
+                }));
+
             _logger.LogError(
                 ex,
                 "Failed to create payment. InvoiceId={InvoiceId} Amount={Amount} Currency={Currency} PaymentDate={PaymentDate} Method={Method}",

@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #12263a;
+  --muted: #5f7183;
+  --paper: #fffef9;
+  --line: #d7dde3;
+  --accent: #d95f18;
+  --accent-soft: #ffe1c9;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "IBM Plex Sans", "Trebuchet MS", "Segoe UI", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 0% 0%, #ffe8d6 0%, transparent 36%),
+    radial-gradient(circle at 100% 100%, #d7effa 0%, transparent 32%),
+    var(--paper);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+  color: var(--ink);
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(1.4rem, 1.8vw + 1rem, 2rem);
+}
+
+h2 {
+  font-size: clamp(1.1rem, 1vw + 0.9rem, 1.4rem);
+}
+
+p {
+  margin: 0;
+  color: var(--muted);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.75rem;
+  font-size: 0.95rem;
+}
+
+thead th {
+  text-align: left;
+  background: #f8f5ee;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+th,
+td {
+  border: 1px solid var(--line);
+  padding: 0.6rem;
+  vertical-align: top;
+}
+
+label {
+  display: grid;
+  gap: 0.35rem;
+  margin-block: 0.55rem;
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+
+input,
+select,
+button,
+textarea {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.55rem;
+  background: white;
+}
+
+button {
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+}
+
+button:hover {
+  filter: brightness(0.95);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+a {
+  color: #0f69a8;
+}
+
+@keyframes karve-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

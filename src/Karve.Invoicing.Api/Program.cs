@@ -1,6 +1,7 @@
 
 using FluentValidation;
 using Karve.Invoicing.Api.Middleware;
+using Karve.Invoicing.Api.Observability;
 using Karve.Invoicing.Api.Services;
 using Karve.Invoicing.Application;
 using Karve.Invoicing.Application.Services;
@@ -14,8 +15,14 @@ using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.Identity.Web;
 using Microsoft.OpenApi;
+using Microsoft.Extensions.Logging;
+using Serilog;
+using Serilog.Events;
+using Serilog.Formatting.Compact;
 using Scalar.AspNetCore;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
+using System.Diagnostics;
 
 /// <summary>
 /// Entry point for the Karve Invoicing API application.
@@ -29,8 +36,50 @@ public partial class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+        var serilogOptions = builder.Configuration
+            .GetSection(SerilogOptions.SectionName)
+            .Get<SerilogOptions>() ?? new SerilogOptions();
+        var openTelemetryOptions = builder.Configuration
+            .GetSection(OpenTelemetryOptions.SectionName)
+            .Get<OpenTelemetryOptions>() ?? new OpenTelemetryOptions();
 
         // Add services to the container.
+
+        builder.Services.Configure<SerilogOptions>(
+            builder.Configuration.GetSection(SerilogOptions.SectionName));
+        builder.Logging.ClearProviders();
+        builder.Host.UseSerilog((_, _, loggerConfiguration) =>
+        {
+            loggerConfiguration
+                .MinimumLevel.Is(ParseSerilogLevel(serilogOptions.MinimumLevel, LogEventLevel.Information))
+                .MinimumLevel.Override("Microsoft", ParseSerilogLevel(serilogOptions.MicrosoftMinimumLevel, LogEventLevel.Warning))
+                .Enrich.FromLogContext()
+                .Enrich.WithProperty("ServiceName", openTelemetryOptions.ServiceName)
+                .Enrich.WithProperty("Environment", string.IsNullOrWhiteSpace(openTelemetryOptions.Environment)
+                    ? builder.Environment.EnvironmentName
+                    : openTelemetryOptions.Environment);
+
+            if (serilogOptions.EnableJsonConsole)
+            {
+                loggerConfiguration.WriteTo.Console(new RenderedCompactJsonFormatter());
+            }
+            else
+            {
+                loggerConfiguration.WriteTo.Console();
+            }
+        }, writeToProviders: true);
+
+        builder.Services.Configure<OpenTelemetryOptions>(
+            builder.Configuration.GetSection(OpenTelemetryOptions.SectionName));
+        builder.AddKarveOpenTelemetry();
+        builder.Logging.Configure(options =>
+        {
+            options.ActivityTrackingOptions = ActivityTrackingOptions.TraceId
+                | ActivityTrackingOptions.SpanId
+                | ActivityTrackingOptions.ParentId
+                | ActivityTrackingOptions.Baggage
+                | ActivityTrackingOptions.Tags;
+        });
 
         builder.Services.AddInvoicingInfrastructure(options =>
             options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")!));
@@ -93,7 +142,7 @@ public partial class Program
         {
             options.Filters.Add(new AuthorizeFilter("RequireCompanyMembership"));
         });
-        builder.Services.AddAutoMapper(typeof(AssemblyMarker));
+        builder.Services.AddAutoMapper(_ => { }, typeof(AssemblyMarker).GetTypeInfo().Assembly);
         builder.Services.AddValidatorsFromAssemblyContaining<AssemblyMarker>();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddOpenApi(options =>
@@ -109,7 +158,7 @@ public partial class Program
         {
             options.AddPolicy("AllowLocalhost3000", policy =>
             {
-                policy.WithOrigins("https://localhost:3000")
+                policy.WithOrigins("https://localhost:5173")
                       .AllowAnyHeader()
                       .AllowAnyMethod();
             });
@@ -171,6 +220,7 @@ public partial class Program
         }
 
         app.UseHttpsRedirection();
+        app.UseMiddleware<CorrelationIdMiddleware>();
         app.UseMiddleware<ExceptionHandlingMiddleware>();
         app.UseCors("AllowLocalhost3000");
         app.UseAuthentication();
@@ -182,10 +232,31 @@ public partial class Program
 
         if (!builder.Configuration.GetValue<bool>("DisableDataSeeding"))
         {
+            using var seedActivity = KarveActivitySource.Instance.StartActivity("background.data_seeding", ActivityKind.Internal);
+            seedActivity?.SetTag("job.name", "startup.data_seeding");
+            seedActivity?.SetTag("job.trigger", "application_startup");
+
             using var scope = app.Services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
-            db.Database.EnsureCreated();
-            DataSeeder.Seed(db);
+            try
+            {
+                var db = scope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
+                db.Database.EnsureCreated();
+                DataSeeder.Seed(db);
+                seedActivity?.SetStatus(ActivityStatusCode.Ok);
+            }
+            catch (Exception ex)
+            {
+                seedActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                seedActivity?.AddEvent(new ActivityEvent(
+                    "exception",
+                    tags: new ActivityTagsCollection
+                    {
+                        ["exception.type"] = ex.GetType().FullName,
+                        ["exception.message"] = ex.Message,
+                        ["exception.stacktrace"] = ex.StackTrace
+                    }));
+                throw;
+            }
         }
 
         app.Run();
@@ -207,6 +278,13 @@ public partial class Program
 
         var currentUserService = httpContext.RequestServices.GetService<ICurrentUserService>();
         return currentUserService?.CompanyIds.Any() == true;
+    }
+
+    private static LogEventLevel ParseSerilogLevel(string? value, LogEventLevel fallback)
+    {
+        return Enum.TryParse<LogEventLevel>(value, ignoreCase: true, out var level)
+            ? level
+            : fallback;
     }
 
     private static void ConfigureOAuth2SecurityScheme(OpenApiDocument document, IConfiguration configuration)
