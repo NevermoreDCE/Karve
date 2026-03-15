@@ -4,7 +4,9 @@ import axios, {
   type AxiosResponse,
   type AxiosError,
 } from "axios";
+import { context, propagation, trace, SpanStatusCode, type Span } from "@opentelemetry/api";
 import toast from "react-hot-toast";
+import { annotateSpanWithTelemetryContext, getAppTracer } from "../observability/otel";
 import { useTenantStore } from "../state/tenantStore";
 
 function requiredEnv(name: string): string {
@@ -31,6 +33,10 @@ export const apiClient: AxiosInstance = axios.create({
 let requestInterceptorId: number | null = null;
 let responseInterceptorId: number | null = null;
 
+interface TracedRequestConfig extends InternalAxiosRequestConfig {
+  otelRequestSpan?: Span;
+}
+
 /**
  * Attaches Bearer-token injection and 401/403 response handling to the shared
  * Axios instance.  Call this once from AuthProvider when the user is
@@ -54,6 +60,28 @@ export function configureApiClient(
   // D2 — Request interceptor: attach Bearer token.
   requestInterceptorId = apiClient.interceptors.request.use(
     async (config: InternalAxiosRequestConfig) => {
+      const tracedConfig = config as TracedRequestConfig;
+      const method = (config.method ?? "get").toUpperCase();
+      const requestSpan = getAppTracer().startSpan(`http.client.${method}`);
+
+      annotateSpanWithTelemetryContext(requestSpan);
+      requestSpan.setAttribute("http.request.method", method);
+      requestSpan.setAttribute("http.url", `${BASE_URL}${config.url ?? ""}`);
+
+      const traceContext = trace.setSpan(context.active(), requestSpan);
+      const traceHeaders: Record<string, string> = {};
+      propagation.inject(traceContext, traceHeaders);
+
+      const traceParent = traceHeaders.traceparent;
+      if (traceParent) {
+        config.headers.traceparent = traceParent;
+      }
+
+      const traceState = traceHeaders.tracestate;
+      if (traceState) {
+        config.headers.tracestate = traceState;
+      }
+
       const token = await getToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -64,6 +92,8 @@ export function configureApiClient(
         config.headers["X-Company-Id"] = selectedCompanyId;
       }
 
+      tracedConfig.otelRequestSpan = requestSpan;
+
       return config;
     },
     (error: unknown) => Promise.reject(error)
@@ -71,8 +101,23 @@ export function configureApiClient(
 
   // D3 — Response interceptor: handle 401 and 403.
   responseInterceptorId = apiClient.interceptors.response.use(
-    (response: AxiosResponse) => response,
+    (response: AxiosResponse) => {
+      const tracedConfig = response.config as TracedRequestConfig;
+      tracedConfig.otelRequestSpan?.setAttribute("http.response.status_code", response.status);
+      tracedConfig.otelRequestSpan?.setStatus({ code: SpanStatusCode.OK });
+      tracedConfig.otelRequestSpan?.end();
+      return response;
+    },
     (error: AxiosError) => {
+      const tracedConfig = error.config as TracedRequestConfig | undefined;
+      const statusCode = error.response?.status;
+      if (statusCode) {
+        tracedConfig?.otelRequestSpan?.setAttribute("http.response.status_code", statusCode);
+      }
+      tracedConfig?.otelRequestSpan?.recordException(error);
+      tracedConfig?.otelRequestSpan?.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
+      tracedConfig?.otelRequestSpan?.end();
+
       const status = error.response?.status;
       if (status === 401) {
         onUnauthorized();
