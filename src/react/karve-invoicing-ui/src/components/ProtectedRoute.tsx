@@ -13,8 +13,13 @@ interface ProtectedRouteProps {
  * Unauthenticated users are redirected to /login.
  */
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
+  const isE2eAuthBypass = import.meta.env.VITE_E2E_AUTH_BYPASS === "true";
   const isAuthenticated = useIsAuthenticated();
   const { inProgress } = useMsal();
+
+  if (isE2eAuthBypass) {
+    return <>{children}</>;
+  }
 
   // MSAL is still processing the redirect response — do not redirect yet.
   if (inProgress !== InteractionStatus.None) {

@@ -41,6 +41,33 @@ interface TracedRequestConfig extends InternalAxiosRequestConfig {
   otelRequestSpan?: Span;
 }
 
+function setRequestHeader(
+  config: InternalAxiosRequestConfig,
+  key: string,
+  value: string
+): void {
+  const headers = config.headers as
+    | (Record<string, string> & { set?: (name: string, headerValue: string) => void })
+    | undefined;
+
+  if (!headers) {
+    return;
+  }
+
+  if (typeof headers.set === "function") {
+    headers.set(key, value);
+    return;
+  }
+
+  headers[key] = value;
+}
+
+function buildTraceparentFromSpan(span: Span): string {
+  const context = span.spanContext();
+  const sampledFlag = (context.traceFlags & 0x01) === 0x01 ? "01" : "00";
+  return `00-${context.traceId}-${context.spanId}-${sampledFlag}`;
+}
+
 /**
  * Attaches Bearer-token injection and 401/403 response handling to the shared
  * Axios instance.  Call this once from AuthProvider when the user is
@@ -76,24 +103,22 @@ export function configureApiClient(
       const traceHeaders: Record<string, string> = {};
       propagation.inject(traceContext, traceHeaders);
 
-      const traceParent = traceHeaders.traceparent;
-      if (traceParent) {
-        config.headers.traceparent = traceParent;
-      }
+      const traceParent = traceHeaders.traceparent ?? buildTraceparentFromSpan(requestSpan);
+      setRequestHeader(config, "traceparent", traceParent);
 
       const traceState = traceHeaders.tracestate;
       if (traceState) {
-        config.headers.tracestate = traceState;
+        setRequestHeader(config, "tracestate", traceState);
       }
 
       const token = await getToken();
       if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+        setRequestHeader(config, "Authorization", `Bearer ${token}`);
       }
 
       const selectedCompanyId = useTenantStore.getState().selectedCompanyId;
       if (selectedCompanyId) {
-        config.headers["X-Company-Id"] = selectedCompanyId;
+        setRequestHeader(config, "X-Company-Id", selectedCompanyId);
       }
 
       tracedConfig.otelRequestSpan = requestSpan;

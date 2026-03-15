@@ -28,16 +28,28 @@ function readClaim(
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { instance, accounts } = useMsal();
   const isAuthenticated = useIsAuthenticated();
+  const isE2eAuthBypass = import.meta.env.VITE_E2E_AUTH_BYPASS === "true";
+  const effectiveIsAuthenticated = isE2eAuthBypass || isAuthenticated;
 
   const login = () => {
+    if (isE2eAuthBypass) {
+      return;
+    }
     instance.loginRedirect(apiLoginRequest);
   };
 
   const logout = () => {
+    if (isE2eAuthBypass) {
+      return;
+    }
     instance.logoutRedirect();
   };
 
   const getAccessToken = async (): Promise<string | null> => {
+    if (isE2eAuthBypass) {
+      return "e2e-access-token";
+    }
+
     if (accounts.length === 0) return null;
 
     try {
@@ -63,9 +75,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const cleanup = configureApiClient(getAccessToken, login);
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [effectiveIsAuthenticated]);
 
   useEffect(() => {
+    if (isE2eAuthBypass) {
+      setTelemetryUserContext({
+        userId: "e2e-user-id",
+        email: "e2e.user@karve.local",
+        displayName: "Karve E2E User",
+      });
+      return;
+    }
+
     const account = accounts[0];
     if (!isAuthenticated || !account) {
       clearTelemetryUserContext();
@@ -89,10 +110,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         readClaim(claims, "name") ??
         (typeof account.name === "string" ? account.name : null),
     });
-  }, [accounts, isAuthenticated]);
+  }, [accounts, isAuthenticated, isE2eAuthBypass]);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout, getAccessToken }}>
+    <AuthContext.Provider value={{ isAuthenticated: effectiveIsAuthenticated, login, logout, getAccessToken }}>
       {children}
     </AuthContext.Provider>
   );

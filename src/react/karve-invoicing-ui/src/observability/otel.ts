@@ -2,7 +2,7 @@ import { SpanStatusCode, type Span } from "@opentelemetry/api";
 import { DocumentLoadInstrumentation } from "@opentelemetry/instrumentation-document-load";
 import { FetchInstrumentation } from "@opentelemetry/instrumentation-fetch";
 import { XMLHttpRequestInstrumentation } from "@opentelemetry/instrumentation-xml-http-request";
-import { ExportResultCode } from "@opentelemetry/core";
+import { ExportResultCode, W3CTraceContextPropagator } from "@opentelemetry/core";
 import { JsonTraceSerializer } from "@opentelemetry/otlp-transformer/build/esm/trace/json";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import {
@@ -23,6 +23,17 @@ interface TelemetryUserContext {
 
 interface TelemetryAttributes {
   [key: string]: string | number | boolean | null | undefined;
+}
+
+interface OTelTestHooks {
+  emitSpanAndFlush: (spanName: string) => Promise<void>;
+  sendCollectorProbePayload: () => Promise<void>;
+}
+
+declare global {
+  interface Window {
+    __karveOtelTestHooks?: OTelTestHooks;
+  }
 }
 
 type TelemetryAttributeValue = string | number | boolean;
@@ -172,12 +183,71 @@ export function initializeOpenTelemetry(): void {
 
   provider.register({
     contextManager: new StackContextManager().enable(),
+    propagator: new W3CTraceContextPropagator(),
   });
 
   instrumentations.forEach((instrumentation) => {
     instrumentation.setTracerProvider(provider);
     instrumentation.enable();
   });
+
+  if (import.meta.env.VITE_E2E_AUTH_BYPASS === "true" && typeof window !== "undefined") {
+    window.__karveOtelTestHooks = {
+      emitSpanAndFlush: async (spanName: string) => {
+        const span = tracer.startSpan(spanName);
+        annotateSpanWithTelemetryContext(span);
+        span.end();
+        try {
+          await provider.forceFlush();
+        } catch {
+          // Keep this hook non-throwing so tests can validate exporter output
+          // via the collector endpoint instead of page-evaluate failures.
+        }
+      },
+      sendCollectorProbePayload: async () => {
+        await fetch(otlpEndpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            resourceSpans: [
+              {
+                resource: {
+                  attributes: [
+                    {
+                      key: "service.name",
+                      value: { stringValue: serviceName },
+                    },
+                    {
+                      key: "deployment.environment",
+                      value: { stringValue: environment },
+                    },
+                  ],
+                },
+                scopeSpans: [
+                  {
+                    scope: { name: "karve.e2e" },
+                    spans: [
+                      {
+                        traceId: "11111111111111111111111111111111",
+                        spanId: "1111111111111111",
+                        name: "e2e.otel.collector.probe",
+                        kind: 1,
+                        startTimeUnixNano: "1",
+                        endTimeUnixNano: "2",
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          }),
+          keepalive: true,
+        });
+      },
+    };
+  }
 
   initialized = true;
 }
