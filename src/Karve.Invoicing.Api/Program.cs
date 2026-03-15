@@ -158,7 +158,7 @@ public partial class Program
         {
             options.AddPolicy("AllowLocalhost3000", policy =>
             {
-                policy.WithOrigins("https://localhost:3000")
+                policy.WithOrigins("https://localhost:5173")
                       .AllowAnyHeader()
                       .AllowAnyMethod();
             });

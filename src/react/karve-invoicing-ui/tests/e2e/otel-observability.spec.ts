@@ -3,6 +3,14 @@ import { expect, test, type APIRequestContext } from "@playwright/test";
 const OTEL_COLLECTOR_BASE_URL = "http://127.0.0.1:4318";
 const TRACEPARENT_PATTERN = /^00-[a-f0-9]{32}-[a-f0-9]{16}-0[01]$/;
 
+declare global {
+  interface Window {
+    __karveOtelTestHooks?: {
+      sendCollectorProbePayload: () => Promise<void>;
+    };
+  }
+}
+
 function isInvoicesApiRequest(url: string): boolean {
   const parsed = new URL(url);
   return parsed.pathname === "/api/invoices";
