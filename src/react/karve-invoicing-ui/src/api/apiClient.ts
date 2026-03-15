@@ -6,7 +6,11 @@ import axios, {
 } from "axios";
 import { context, propagation, trace, SpanStatusCode, type Span } from "@opentelemetry/api";
 import toast from "react-hot-toast";
-import { annotateSpanWithTelemetryContext, getAppTracer } from "../observability/otel";
+import {
+  annotateSpanWithTelemetryContext,
+  getAppTracer,
+  reportApiError,
+} from "../observability/otel";
 import { useTenantStore } from "../state/tenantStore";
 
 function requiredEnv(name: string): string {
@@ -111,19 +115,40 @@ export function configureApiClient(
     (error: AxiosError) => {
       const tracedConfig = error.config as TracedRequestConfig | undefined;
       const statusCode = error.response?.status;
+      const requestMethod = (error.config?.method ?? "get").toUpperCase();
+      const requestUrl = error.config?.url ?? "unknown";
+      const correlationId = error.response?.headers?.["x-correlation-id"];
+
       if (statusCode) {
         tracedConfig?.otelRequestSpan?.setAttribute("http.response.status_code", statusCode);
       }
+
       tracedConfig?.otelRequestSpan?.recordException(error);
       tracedConfig?.otelRequestSpan?.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
       tracedConfig?.otelRequestSpan?.end();
+
+      reportApiError(error, {
+        "error.source": "axios.response_interceptor",
+        "http.request.method": requestMethod,
+        "http.url": `${BASE_URL}${requestUrl}`,
+        "http.response.status_code": statusCode,
+        "http.response.correlation_id":
+          typeof correlationId === "string" ? correlationId : undefined,
+      });
+
+      console.error("[API] Request failed", {
+        method: requestMethod,
+        url: requestUrl,
+        statusCode,
+        correlationId,
+        message: error.message,
+      });
 
       const status = error.response?.status;
       if (status === 401) {
         onUnauthorized();
       } else if (status === 403) {
         toast.error("Access denied for this company or resource.");
-        console.error("[API] Access denied (403):", error.config?.url);
       } else if (status && status >= 500) {
         toast.error("Server error. Please try again shortly.");
       } else if (status && status >= 400) {

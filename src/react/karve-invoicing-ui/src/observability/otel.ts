@@ -1,4 +1,4 @@
-import { type Span } from "@opentelemetry/api";
+import { SpanStatusCode, type Span } from "@opentelemetry/api";
 import { DocumentLoadInstrumentation } from "@opentelemetry/instrumentation-document-load";
 import { FetchInstrumentation } from "@opentelemetry/instrumentation-fetch";
 import { XMLHttpRequestInstrumentation } from "@opentelemetry/instrumentation-xml-http-request";
@@ -19,6 +19,10 @@ interface TelemetryUserContext {
   userId: string | null;
   email?: string | null;
   displayName?: string | null;
+}
+
+interface TelemetryAttributes {
+  [key: string]: string | number | boolean | null | undefined;
 }
 
 function envValue(name: string, fallback?: string): string {
@@ -204,4 +208,38 @@ export function setTelemetryUserContext(user: TelemetryUserContext): void {
 export function clearTelemetryUserContext(): void {
   currentUserContext = null;
   currentUserSignature = null;
+}
+
+export function reportUiError(error: Error, details?: TelemetryAttributes): void {
+  const span = tracer.startSpan("ui.error");
+  annotateSpanWithTelemetryContext(span);
+  span.recordException(error);
+  span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
+
+  if (details) {
+    for (const [key, value] of Object.entries(details)) {
+      if (value !== null && value !== undefined) {
+        span.setAttribute(key, value);
+      }
+    }
+  }
+
+  span.end();
+}
+
+export function reportApiError(error: Error, details?: TelemetryAttributes): void {
+  const span = tracer.startSpan("ui.api_error");
+  annotateSpanWithTelemetryContext(span);
+  span.recordException(error);
+  span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
+
+  if (details) {
+    for (const [key, value] of Object.entries(details)) {
+      if (value !== null && value !== undefined) {
+        span.setAttribute(key, value);
+      }
+    }
+  }
+
+  span.end();
 }

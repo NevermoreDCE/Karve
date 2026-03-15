@@ -19,81 +19,79 @@ import { ProductsPage } from './pages/ProductsPage'
 function ProtectedPage({ children }: { children: ReactNode }) {
   return (
     <ProtectedRoute>
-      <ErrorBoundary>
-        <PageContainer sidebar={<Sidebar />}>{children}</PageContainer>
-      </ErrorBoundary>
+      <PageContainer sidebar={<Sidebar />}>{children}</PageContainer>
     </ProtectedRoute>
   )
 }
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <Toaster position="top-right" />
-      <BrowserRouter>
-        <AuthProvider>
-          <div className="min-h-screen">
-            <Navbar />
-            <main>
-            <Routes>
-              <Route
-                path="/login"
-                element={
-                  <ErrorBoundary>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <Toaster position="top-right" />
+        <BrowserRouter>
+          <AuthProvider>
+            <div className="min-h-screen">
+              <Navbar />
+              <main>
+              <Routes>
+                <Route
+                  path="/login"
+                  element={
                     <PageContainer>
                       <LoginPage />
                     </PageContainer>
-                  </ErrorBoundary>
-                }
-              />
-              <Route
-                path="/"
-                element={
-                  <ProtectedPage>
-                    <DashboardPage />
-                  </ProtectedPage>
-                }
-              />
-              <Route
-                path="/invoices"
-                element={
-                  <ProtectedPage>
-                    <InvoicesPage />
-                  </ProtectedPage>
-                }
-              />
-              <Route
-                path="/invoices/:id"
-                element={
-                  <ProtectedPage>
-                    <InvoiceDetailPage />
-                  </ProtectedPage>
-                }
-              />
-              <Route
-                path="/customers"
-                element={
-                  <ProtectedPage>
-                    <CustomersPage />
-                  </ProtectedPage>
-                }
-              />
-              <Route
-                path="/products"
-                element={
-                  <ProtectedPage>
-                    <ProductsPage />
-                  </ProtectedPage>
-                }
-              />
-              {/* Catch-all redirect */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-            </main>
-          </div>
-        </AuthProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
+                  }
+                />
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedPage>
+                      <DashboardPage />
+                    </ProtectedPage>
+                  }
+                />
+                <Route
+                  path="/invoices"
+                  element={
+                    <ProtectedPage>
+                      <InvoicesPage />
+                    </ProtectedPage>
+                  }
+                />
+                <Route
+                  path="/invoices/:id"
+                  element={
+                    <ProtectedPage>
+                      <InvoiceDetailPage />
+                    </ProtectedPage>
+                  }
+                />
+                <Route
+                  path="/customers"
+                  element={
+                    <ProtectedPage>
+                      <CustomersPage />
+                    </ProtectedPage>
+                  }
+                />
+                <Route
+                  path="/products"
+                  element={
+                    <ProtectedPage>
+                      <ProductsPage />
+                    </ProtectedPage>
+                  }
+                />
+                {/* Catch-all redirect */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+              </main>
+            </div>
+          </AuthProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }
 

@@ -1,5 +1,6 @@
 import type { ErrorInfo, ReactNode } from "react";
 import { Component } from "react";
+import { reportUiError } from "../observability/otel";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -18,6 +19,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     console.error("[ErrorBoundary] UI render error", error, errorInfo);
+    reportUiError(error, {
+      "error.source": "react.error_boundary",
+      "error.component_stack": errorInfo.componentStack,
+    });
   }
 
   public render(): ReactNode {
