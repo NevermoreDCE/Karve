@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { InvoiceForm, type InvoiceFormValues } from "../components/InvoiceForm";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { useCreateInvoice, useInvoices } from "../hooks/useInvoices";
+import { runUiSpan } from "../observability/otel";
 
 function toDateInputValue(isoDate: string): string {
   return isoDate.slice(0, 10);
@@ -29,9 +30,40 @@ export function InvoicesPage() {
   const createInvoiceMutation = useCreateInvoice();
 
   const handleCreate = async (values: InvoiceFormValues) => {
-    await createInvoiceMutation.mutateAsync(values);
+    await runUiSpan(
+      "ui.invoice.create.submit",
+      {
+        "ui.operation": "create_invoice",
+        "invoice.status": values.status,
+      },
+      () => createInvoiceMutation.mutateAsync(values)
+    );
+
     setShowCreate(false);
   };
+
+  const tableRows = useMemo(() => {
+    if (!invoicesQuery.data) {
+      return [];
+    }
+
+    return runUiSpan(
+      "render.invoice.table",
+      {
+        "ui.operation": "invoice_table_prepare",
+        "invoice.row_count": invoicesQuery.data.items.length,
+      },
+      () =>
+        invoicesQuery.data.items.map((invoice) => ({
+          id: invoice.id,
+          idPreview: `${invoice.id.slice(0, 8)}...`,
+          status: invoice.status,
+          customerPreview: `${invoice.customerId.slice(0, 8)}...`,
+          invoiceDate: toDateInputValue(invoice.invoiceDate),
+          dueDate: toDateInputValue(invoice.dueDate),
+        }))
+    );
+  }, [invoicesQuery.data]);
 
   useEffect(() => {
     if (createInvoiceMutation.isSuccess) {
@@ -82,20 +114,20 @@ export function InvoicesPage() {
             </tr>
           </thead>
           <tbody>
-            {invoicesQuery.data.items.length === 0 ? (
+            {tableRows.length === 0 ? (
               <tr>
                 <td colSpan={6}>No invoices found.</td>
               </tr>
             ) : (
-              invoicesQuery.data.items.map((invoice) => (
-                <tr key={invoice.id}>
-                  <td>{invoice.id.slice(0, 8)}...</td>
-                  <td>{invoice.status}</td>
-                  <td>{invoice.customerId.slice(0, 8)}...</td>
-                  <td>{toDateInputValue(invoice.invoiceDate)}</td>
-                  <td>{toDateInputValue(invoice.dueDate)}</td>
+              tableRows.map((row) => (
+                <tr key={row.id}>
+                  <td>{row.idPreview}</td>
+                  <td>{row.status}</td>
+                  <td>{row.customerPreview}</td>
+                  <td>{row.invoiceDate}</td>
+                  <td>{row.dueDate}</td>
                   <td>
-                    <Link to={`/invoices/${invoice.id}`}>View Details</Link>
+                    <Link to={`/invoices/${row.id}`}>View Details</Link>
                   </td>
                 </tr>
               ))

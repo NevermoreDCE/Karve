@@ -47,6 +47,7 @@ public static class OpenTelemetryServiceCollectionExtensions
             {
                 tracing
                     .SetResourceBuilder(resourceBuilder)
+                    .AddSource(KarveActivitySource.Name)
                     .AddAspNetCoreInstrumentation(traceOptions =>
                     {
                         traceOptions.RecordException = true;

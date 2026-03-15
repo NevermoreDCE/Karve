@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Diagnostics;
+using Karve.Invoicing.Api.Observability;
 
 namespace Karve.Invoicing.Api.Controllers;
 
@@ -134,11 +136,16 @@ public class InvoicesController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ApiResponse<InvoiceDto>>> Post([FromBody] CreateInvoiceRequest request)
     {
+        using var activity = KarveActivitySource.Instance.StartActivity("invoice.create", ActivityKind.Internal);
+        activity?.SetTag("invoice.customer_id", request.CustomerId);
+        activity?.SetTag("invoice.status", request.Status.ToString());
+
         try
         {
             var validationResult = await _createValidator.ValidateAsync(request);
             if (!validationResult.IsValid)
             {
+                activity?.SetStatus(ActivityStatusCode.Error, "Invoice creation validation failed.");
                 return BadRequest(ApiResponse<InvoiceDto>.Failure(string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage))));
             }
 
@@ -150,11 +157,26 @@ public class InvoicesController : ControllerBase
 
             invoice.CompanyId = companyId;
             await _repository.AddAsync(invoice);
+
+            activity?.SetTag("invoice.id", invoice.Id);
+            activity?.SetTag("invoice.company_id", invoice.CompanyId);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+
             var dto = _mapper.Map<InvoiceDto>(invoice);
             return CreatedAtAction(nameof(Get), new { id = invoice.Id }, ApiResponse<InvoiceDto>.Success(dto));
         }
         catch (Exception ex)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.AddEvent(new ActivityEvent(
+                "exception",
+                tags: new ActivityTagsCollection
+                {
+                    ["exception.type"] = ex.GetType().FullName,
+                    ["exception.message"] = ex.Message,
+                    ["exception.stacktrace"] = ex.StackTrace
+                }));
+
             _logger.LogError(
                 ex,
                 "Failed to create invoice. CustomerId={CustomerId} InvoiceDate={InvoiceDate} DueDate={DueDate} Status={Status}",

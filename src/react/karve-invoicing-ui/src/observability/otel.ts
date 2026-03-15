@@ -25,6 +25,8 @@ interface TelemetryAttributes {
   [key: string]: string | number | boolean | null | undefined;
 }
 
+type TelemetryAttributeValue = string | number | boolean;
+
 function envValue(name: string, fallback?: string): string {
   const value = import.meta.env[name as keyof ImportMetaEnv];
   if (typeof value === "string" && value.trim().length > 0) {
@@ -242,4 +244,34 @@ export function reportApiError(error: Error, details?: TelemetryAttributes): voi
   }
 
   span.end();
+}
+
+export function runUiSpan<T>(
+  spanName: string,
+  attributes: Record<string, TelemetryAttributeValue>,
+  operation: () => T
+): T {
+  const span = tracer.startSpan(spanName);
+  annotateSpanWithTelemetryContext(span);
+
+  for (const [key, value] of Object.entries(attributes)) {
+    span.setAttribute(key, value);
+  }
+
+  try {
+    const result = operation();
+    span.setStatus({ code: SpanStatusCode.OK });
+    return result;
+  } catch (error) {
+    if (error instanceof Error) {
+      span.recordException(error);
+      span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
+    } else {
+      span.setStatus({ code: SpanStatusCode.ERROR, message: "Unknown UI operation failure." });
+    }
+
+    throw error;
+  } finally {
+    span.end();
+  }
 }

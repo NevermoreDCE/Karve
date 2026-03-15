@@ -22,6 +22,7 @@ using Serilog.Formatting.Compact;
 using Scalar.AspNetCore;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Diagnostics;
 
 /// <summary>
 /// Entry point for the Karve Invoicing API application.
@@ -231,10 +232,31 @@ public partial class Program
 
         if (!builder.Configuration.GetValue<bool>("DisableDataSeeding"))
         {
+            using var seedActivity = KarveActivitySource.Instance.StartActivity("background.data_seeding", ActivityKind.Internal);
+            seedActivity?.SetTag("job.name", "startup.data_seeding");
+            seedActivity?.SetTag("job.trigger", "application_startup");
+
             using var scope = app.Services.CreateScope();
-            var db = scope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
-            db.Database.EnsureCreated();
-            DataSeeder.Seed(db);
+            try
+            {
+                var db = scope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
+                db.Database.EnsureCreated();
+                DataSeeder.Seed(db);
+                seedActivity?.SetStatus(ActivityStatusCode.Ok);
+            }
+            catch (Exception ex)
+            {
+                seedActivity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                seedActivity?.AddEvent(new ActivityEvent(
+                    "exception",
+                    tags: new ActivityTagsCollection
+                    {
+                        ["exception.type"] = ex.GetType().FullName,
+                        ["exception.message"] = ex.Message,
+                        ["exception.stacktrace"] = ex.StackTrace
+                    }));
+                throw;
+            }
         }
 
         app.Run();
