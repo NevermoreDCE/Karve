@@ -223,13 +223,13 @@ Example:
 useQuery(['invoices', companyId], ...)
 ```
 
-### **H3 — Add optimistic updates**
+### **H3 — Add optimistic updates** [DONE]
 For:
 - Invoice creation  
 - Customer updates  
 - Product updates  
 
-### **H4 — Add cache invalidation on mutations**
+### **H4 — Add cache invalidation on mutations** [DONE]
 Example:
 
 ```ts

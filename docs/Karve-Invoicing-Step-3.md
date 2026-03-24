@@ -1,6 +1,8 @@
 
 # 🔐 **STEP 3 — Authentication + Multi‑Tenant Enforcement + Global Query Filters**
 
+> Verification status updated on 2026-03-22.
+
 ## 🎯 Step 3 Goals
 By the end of Step 3, your API will:
 
@@ -17,7 +19,7 @@ By the end of Step 3, your API will:
 
 # 🧩 Task Group A — Configure Azure AD Authentication
 
-### **A1 — Add Microsoft Identity Web packages**
+### **A1 — Add Microsoft Identity Web packages** [DONE]
 In the API project:
 
 ```bash
@@ -25,7 +27,7 @@ dotnet add src/Karve.Invoicing.Api package Microsoft.Identity.Web
 dotnet add src/Karve.Invoicing.Api package Microsoft.Identity.Web.MicrosoftGraph
 ```
 
-### **A2 — Add authentication configuration to `appsettings.json`**
+### **A2 — Add authentication configuration to `appsettings.json`** [DONE]
 Add:
 
 ```json
@@ -43,41 +45,41 @@ What goes in each field:
 - `ClientId`: the **Application (client) ID** of your **API app registration** — this is the app that the back-end API itself is registered as in Azure AD.
 - `Audience`: should match `ClientId` for a single-tenant API, or use the full App ID URI (e.g., `api://<client-id>`) if that's how you exposed your API. Microsoft.Identity.Web validates the incoming token audience against this value.
 
-### **A3 — Configure authentication in `Program.cs`**
+### **A3 — Configure authentication in `Program.cs`** [DONE]
 ```csharp
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
 ```
 
-### **A4 — Add authorization middleware**
+### **A4 — Add authorization middleware** [DONE]
 ```csharp
 app.UseAuthentication();
 app.UseAuthorization();
 ```
 
-### **A5 — Add `[Authorize]` to all controllers**
+### **A5 — Add `[Authorize]` to all controllers** [DONE]
 At the class level.
 
 ---
 
 # 🧩 Task Group B — Implement `ICurrentUserService`
 
-### **B1 — Create `/Services` folder in Application project**
+### **B1 — Create `/Services` folder in Application project** [DONE]
 
-### **B2 — Create `ICurrentUserService` interface**
+### **B2 — Create `ICurrentUserService` interface** [DONE]
 Methods:
 - `string? UserId { get; }`
 - `string? Email { get; }`
 - `IReadOnlyList<Guid> CompanyIds { get; }`
 
-### **B3 — Implement `CurrentUserService` in API project**
+### **B3 — Implement `CurrentUserService` in API project** [DONE]
 Extract from JWT:
 - `oid` → UserId  
 - `preferred_username` or `email` → Email  
 
 Company IDs will be loaded later.
 
-### **B4 — Register service in DI**
+### **B4 — Register service in DI** [DONE]
 ```csharp
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 ```
@@ -86,23 +88,23 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
 # 🧩 Task Group C — Automatic User Provisioning
 
-### **C1 — Create `IUserProvisioningService` in Application project**
+### **C1 — Create `IUserProvisioningService` in Application project** [DONE]
 
-### **C2 — Implement `UserProvisioningService` in Infrastructure**
+### **C2 — Implement `UserProvisioningService` in Infrastructure** [DONE]
 Responsibilities:
 - Check if `AppUser` exists by external ID  
 - If not, create a new `AppUser`  
 - Do **not** assign a company yet  
 - Save to database  
 
-### **C3 — Create middleware: `UserProvisioningMiddleware`**
+### **C3 — Create middleware: `UserProvisioningMiddleware`** [DONE]
 Steps:
 1. If request is authenticated  
 2. Extract external user ID  
 3. Call `UserProvisioningService`  
 4. Attach local user ID to `HttpContext.Items`  
 
-### **C4 — Register middleware**
+### **C4 — Register middleware** [DONE]
 ```csharp
 app.UseMiddleware<UserProvisioningMiddleware>();
 ```
@@ -111,17 +113,17 @@ app.UseMiddleware<UserProvisioningMiddleware>();
 
 # 🧩 Task Group D — Company Membership Enforcement
 
-### **D1 — Create `ICompanyMembershipService`**
+### **D1 — Create `ICompanyMembershipService`** [DONE]
 Methods:
 - `Task<IReadOnlyList<Guid>> GetCompanyIdsForUserAsync(Guid userId)`
 - `Task<bool> UserBelongsToCompanyAsync(Guid userId, Guid companyId)`
 
-### **D2 — Implement `CompanyMembershipService` in Infrastructure**
+### **D2 — Implement `CompanyMembershipService` in Infrastructure** [DONE]
 
-### **D3 — Update `CurrentUserService`**
+### **D3 — Update `CurrentUserService`** [DONE]
 Load company IDs via `ICompanyMembershipService`.
 
-### **D4 — Create authorization policy: `RequireCompanyMembership`**
+### **D4 — Create authorization policy: `RequireCompanyMembership`** [DONE]
 ```csharp
 builder.Services.AddAuthorization(options =>
 {
@@ -134,7 +136,7 @@ builder.Services.AddAuthorization(options =>
 });
 ```
 
-### **D5 — Apply policy globally**
+### **D5 — Apply policy globally** [DONE]
 ```csharp
 builder.Services.AddControllers(options =>
 {
@@ -146,10 +148,10 @@ builder.Services.AddControllers(options =>
 
 # 🧩 Task Group E — Global Query Filters for Multi‑Tenancy
 
-### **E1 — Update `InvoicingDbContext` constructor**
+### **E1 — Update `InvoicingDbContext` constructor** [DONE]
 Inject `ICurrentUserService`.
 
-### **E2 — Add global filters in `OnModelCreating`**
+### **E2 — Add global filters in `OnModelCreating`** [DONE]
 For each entity with `CompanyId`:
 
 ```csharp
@@ -164,17 +166,17 @@ Repeat for:
 - Invoice  
 - Payment  
 
-### **E3 — Add guard for unauthenticated users**
+### **E3 — Add guard for unauthenticated users** [DONE]
 If no user or no companies → return no data.
 
 ---
 
 # 🧩 Task Group F — Update Repositories for Tenant Enforcement
 
-### **F1 — Ensure all repository queries respect global filters**
+### **F1 — Ensure all repository queries respect global filters** [DONE]
 No changes needed if filters are correct.
 
-### **F2 — Add guard clauses for cross‑company access**
+### **F2 — Add guard clauses for cross‑company access** [DONE]
 Example in `InvoiceRepository`:
 
 ```csharp
@@ -182,17 +184,17 @@ if (!currentUser.CompanyIds.Contains(invoice.CompanyId))
     throw new ForbiddenException("User does not belong to this company.");
 ```
 
-### **F3 — Add `ForbiddenException` class**
+### **F3 — Add `ForbiddenException` class** [DONE]
 In Application project.
 
 ---
 
 # 🧩 Task Group G — Update Controllers for Tenant Enforcement
 
-### **G1 — Remove any CompanyId parameters from requests**
+### **G1 — Remove any CompanyId parameters from requests** [DONE]
 CompanyId is derived from the user.
 
-### **G2 — When creating entities, set `CompanyId` automatically**
+### **G2 — When creating entities, set `CompanyId` automatically** [DONE]
 Example:
 
 ```csharp
@@ -201,30 +203,30 @@ entity.CompanyId = currentUser.CompanyIds.Single();
 
 (If multiple companies per user, prompt selection later.)
 
-### **G3 — Ensure all GET/PUT/DELETE operations rely on global filters**
+### **G3 — Ensure all GET/PUT/DELETE operations rely on global filters** [DONE]
 No manual filtering needed.
 
 ---
 
 # 🧩 Task Group H — Add Tenant Resolution Middleware
 
-### **H1 — Create `TenantResolutionMiddleware`**
+### **H1 — Create `TenantResolutionMiddleware`** [DONE]
 Responsibilities:
 - Ensure user has at least one company  
 - If not → return 403  
 - If user has multiple companies → store list in HttpContext for future selection  
 
-### **H2 — Register middleware**
+### **H2 — Register middleware** [DONE]
 Place after authentication, before controllers.
 
 ---
 
 # 🧩 Task Group I — Add Tests for Authentication + Tenancy
 
-### **I1 — Add test helpers for authenticated requests**
+### **I1 — Add test helpers for authenticated requests** [DONE]
 Use `WebApplicationFactory` + fake JWT.
 
-### **I2 — Add tests for:**
+### **I2 — Add tests for:** [DONE]
 - User provisioning  
 - Company membership enforcement  
 - Global query filters  
@@ -232,13 +234,13 @@ Use `WebApplicationFactory` + fake JWT.
 - Allowed access  
 - Controllers returning only tenant‑scoped data  
 
-### **I3 — Add tests for `ICurrentUserService`**
+### **I3 — Add tests for `ICurrentUserService`** [DONE]
 
 ---
 
 # 🧩 Task Group J — Update OpenAPI + Scalar
 
-### **J1 — Add security scheme to OpenAPI**
+### **J1 — Add security scheme to OpenAPI** [DONE]
 ```csharp
 builder.Services.AddOpenApi(options =>
 {
@@ -246,10 +248,10 @@ builder.Services.AddOpenApi(options =>
 });
 ```
 
-### **J2 — Add “Authorize” button in Scalar**
+### **J2 — Add “Authorize” button in Scalar** [DONE]
 Configure OAuth settings.
 
-### **J3 - Local PKCE setup values (Azure AD + Scalar)**
+### **J3 - Local PKCE setup values (Azure AD + Scalar)** [DONE]
 Use these exact mappings in `src/Karve.Invoicing.Api/appsettings.json`:
 
 ```json

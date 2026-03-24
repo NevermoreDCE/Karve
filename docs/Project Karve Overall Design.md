@@ -1080,15 +1080,78 @@ To enforce tenant isolation automatically.
 ### **Add authorization rules**
 To ensure users can only access their company’s data.
 
+
+
+
+
 ---
 
-# 🎯 If you want, I can help you next with:
 
-- The full ERD diagram  
-- The EF Core configuration  
-- The multi‑tenant middleware  
-- The OAuth claim mapping for CompanyId  
-- The initial database migration  
-- The folder structure for your Onion Architecture  
+⭐ Top 12 Dashboard Items for an End‑User Invoicing App
+1. Total Outstanding Amount
+The single most important number for cash flow.
+Shows how much money is still owed.
 
-Just tell me what direction you want to go.
+2. Overdue Amount
+A red‑flag metric.
+Helps users immediately see if they’re behind on collections.
+
+3. Invoices Due Soon (Next 7 Days)
+A proactive “heads‑up” metric.
+Prevents overdue invoices before they happen.
+
+4. Payments Received This Month
+A clean indicator of cash‑in for the current period.
+
+5. Revenue Trend (Last 6–12 Months)
+A simple line chart showing whether the business is growing, shrinking, or stable.
+
+6. Invoice Status Breakdown
+A visual snapshot such as:
+- Draft
+- Sent
+- Viewed
+- Partially Paid
+- Paid
+- Overdue
+This gives users a sense of their billing pipeline at a glance.
+
+7. Average Payment Time (DSO – Days Sales Outstanding)
+Shows how long customers typically take to pay.
+A key business health metric.
+
+8. Top Customers by Revenue
+Helps users understand who their most valuable clients are.
+
+9. Recent Activity Feed
+A chronological list of important events:
+- Invoice sent
+- Invoice viewed
+- Payment received
+- Customer added
+This gives the dashboard a “living” feel.
+
+10. Unpaid Invoices List (Top 5)
+A quick‑action list showing:
+- Invoice number
+- Customer
+- Amount
+- Days overdue
+Users can click directly into the invoice.
+
+11. New Customers Added This Month
+A simple growth indicator.
+Useful for freelancers, agencies, and small businesses.
+
+12. Product/Service Revenue Breakdown
+A bar or donut chart showing which offerings generate the most income.
+
+🎯 Why These 12 Work So Well
+They strike the right balance between:
+- Cash flow visibility
+- Actionable alerts
+- Business performance insights
+- Customer behavior awareness
+…and they avoid anything technical, multi‑tenant, or system‑level — exactly what an end user expects.
+
+---

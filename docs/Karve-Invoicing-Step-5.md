@@ -1,5 +1,7 @@
 # 🌟 STEP 5 — Full‑Stack Observability (Vendor‑Neutral OpenTelemetry)
 
+> Verification status updated on 2026-03-22.
+
 ## 🎯 Step 5 Goals
 By the end of Step 5, you will have:
 
@@ -17,7 +19,7 @@ This keeps your architecture clean and future‑proof.
 
 # 🧩 Task Group A — Add OpenTelemetry to the API (Vendor‑Neutral)
 
-### **A1 — Add OpenTelemetry packages**
+### **A1 — Add OpenTelemetry packages** [DONE]
 ```bash
 dotnet add src/Karve.Invoicing.Api package OpenTelemetry.Extensions.Hosting
 dotnet add src/Karve.Invoicing.Api package OpenTelemetry.Instrumentation.AspNetCore
@@ -28,9 +30,9 @@ dotnet add src/Karve.Invoicing.Api package OpenTelemetry.Logs
 dotnet add src/Karve.Invoicing.Api package OpenTelemetry.Metrics
 ```
 
-### **A2 — Create `/Observability` folder in API project**
+### **A2 — Create `/Observability` folder in API project** [DONE]
 
-### **A3 — Add `OpenTelemetryOptions` class**
+### **A3 — Add `OpenTelemetryOptions` class** [DONE]
 Properties:
 - `string OtlpEndpoint`  
 - `string ServiceName`  
@@ -39,13 +41,13 @@ Properties:
 - `bool EnableMetrics`  
 - `bool EnableLogs`  
 
-### **A4 — Bind options in `Program.cs`**
+### **A4 — Bind options in `Program.cs`** [DONE]
 ```csharp
 builder.Services.Configure<OpenTelemetryOptions>(
     builder.Configuration.GetSection("OpenTelemetry"));
 ```
 
-### **A5 — Register OpenTelemetry in `Program.cs`**
+### **A5 — Register OpenTelemetry in `Program.cs`** [DONE]
 Include:
 - Resource builder  
 - Traces  
@@ -53,13 +55,13 @@ Include:
 - Logs  
 - OTLP exporter  
 
-### **A6 — Enable instrumentation**
+### **A6 — Enable instrumentation** [DONE]
 - ASP.NET Core  
 - HttpClient  
 - EF Core  
 - Runtime metrics  
 
-### **A7 — Add environment‑based configuration**
+### **A7 — Add environment‑based configuration** [DONE]
 Examples:
 - Local dev → console exporter  
 - Cloud → OTLP exporter  
@@ -68,41 +70,41 @@ Examples:
 
 # 🧩 Task Group B — Add Correlation ID Support
 
-### **B1 — Create `CorrelationIdMiddleware`**
+### **B1 — Create `CorrelationIdMiddleware`** [DONE]
 Responsibilities:
 - Generate correlation ID if missing  
 - Add to response headers  
 - Add to logging scope  
 
-### **B2 — Register middleware early in pipeline**
+### **B2 — Register middleware early in pipeline** [DONE]
 
-### **B3 — Update logging configuration**
+### **B3 — Update logging configuration** [DONE]
 Include correlation ID and trace ID.
 
 ---
 
 # 🧩 Task Group C — Add Structured Logging (Vendor‑Neutral)
 
-### **C1 — Add Serilog packages**
+### **C1 — Add Serilog packages** [DONE]
 ```bash
 dotnet add src/Karve.Invoicing.Api package Serilog.AspNetCore
 dotnet add src/Karve.Invoicing.Api package Serilog.Sinks.Console
 ```
 
-### **C2 — Add `SerilogOptions` class**
+### **C2 — Add `SerilogOptions` class** [DONE]
 
-### **C3 — Configure Serilog in `Program.cs`**
+### **C3 — Configure Serilog in `Program.cs`** [DONE]
 - JSON console output  
 - Include correlation ID  
 - Include trace ID  
 
-### **C4 — Replace default logging with Serilog**
+### **C4 — Replace default logging with Serilog** [DONE]
 
 ---
 
 # 🧩 Task Group D — Add Frontend Observability (Vendor‑Neutral OpenTelemetry Web SDK)
 
-### **D1 — Install OpenTelemetry Web SDK**
+### **D1 — Install OpenTelemetry Web SDK** [DONE]
 ```bash
 npm install @opentelemetry/api
 npm install @opentelemetry/sdk-trace-web
@@ -112,7 +114,7 @@ npm install @opentelemetry/instrumentation-fetch
 npm install @opentelemetry/instrumentation-xml-http-request
 ```
 
-### **D2 — Create `/observability/otel.ts`**
+### **D2 — Create `/observability/otel.ts`** [DONE]
 Initialize:
 
 - WebTracerProvider  
@@ -120,7 +122,7 @@ Initialize:
 - DocumentLoad instrumentation  
 - Fetch/XHR instrumentation  
 
-### **D3 — Add service name + environment**
+### **D3 — Add service name + environment** [DONE]
 Use environment variables:
 
 ```
@@ -129,9 +131,9 @@ VITE_OTEL_EXPORTER_OTLP_ENDPOINT=https://your-otel-endpoint
 VITE_ENVIRONMENT=development
 ```
 
-### **D4 — Initialize OpenTelemetry in `main.tsx`**
+### **D4 — Initialize OpenTelemetry in `main.tsx`** [DONE]
 
-### **D5 — Add user context after login**
+### **D5 — Add user context after login** [DONE]
 ```ts
 provider.getTracer('default').setAttribute('user.id', userId);
 ```
@@ -140,44 +142,44 @@ provider.getTracer('default').setAttribute('user.id', userId);
 
 # 🧩 Task Group E — Add Frontend → Backend Trace Correlation
 
-### **E1 — Add Axios interceptor to forward W3C traceparent header**
+### **E1 — Add Axios interceptor to forward W3C traceparent header** [DONE]
 ```ts
 config.headers['traceparent'] = traceHeader;
 ```
 
-### **E2 — Ensure backend OpenTelemetry reads traceparent**
+### **E2 — Ensure backend OpenTelemetry reads traceparent** [DONE]
 OTel does this automatically.
 
-### **E3 — Verify trace continuity locally**
+### **E3 — Verify trace continuity locally** [DONE]
 Use console exporter in dev.
 
 ---
 
 # 🧩 Task Group F — Add Error Tracking (Vendor‑Neutral)
 
-### **F1 — Add global error boundary in React**
+### **F1 — Add global error boundary in React** [DONE]
 
-### **F2 — Report errors as spans**
+### **F2 — Report errors as spans** [DONE]
 ```ts
 const span = tracer.startSpan('ui.error');
 span.recordException(error);
 span.end();
 ```
 
-### **F3 — Add API error logging**
+### **F3 — Add API error logging** [DONE]
 In Axios response interceptor.
 
 ---
 
 # 🧩 Task Group G — Add Performance Monitoring
 
-### **G1 — Add custom spans for expensive UI operations**
+### **G1 — Add custom spans for expensive UI operations** [DONE]
 Example:
 ```ts
 const span = tracer.startSpan('render.invoice.table');
 ```
 
-### **G2 — Add backend spans for expensive operations**
+### **G2 — Add backend spans for expensive operations** [DONE]
 Wrap:
 - Invoice creation  
 - Payment processing  
@@ -187,12 +189,16 @@ Wrap:
 
 # 🧩 Task Group H — Add Observability Tests
 
-### **H1 — Backend tests**
+### **H1 — Backend tests** [DONE]
 - Correlation ID middleware  
 - OpenTelemetry configuration  
 - OTLP exporter configuration  
 
-### **H2 — Frontend tests**
+### **H2 — Frontend tests** [BACKLOG]
+Not yet completed:
+- The "error boundary capturing" observability test case is still skipped in the frontend E2E suite.
+- Specifically, the scenario that asserts a `ui.error` span is exported after a forced runtime error has not been enabled yet.
+
 - OTel initialization  
 - Error boundary capturing  
 - Traceparent header forwarding  
