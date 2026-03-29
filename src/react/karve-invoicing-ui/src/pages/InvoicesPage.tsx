@@ -19,6 +19,16 @@ import { useCreateInvoice, useInvoices } from "../hooks/useInvoices";
 import { runUiSpan } from "../observability/otel";
 import type { InvoiceStatus } from "../types/api";
 
+// Map for numeric status values (if backend sends numbers)
+const statusNumberToString: Record<number, InvoiceStatus> = {
+  0: "Draft",
+  1: "Sent",
+  2: "Viewed",
+  3: "Paid",
+  4: "Overdue",
+  5: "Canceled",
+};
+
 function toDateInputValue(isoDate: string): string {
   return isoDate.slice(0, 10);
 }
@@ -73,15 +83,24 @@ export function InvoicesPage() {
       "render.invoice.table",
       { "ui.operation": "invoice_table_prepare", "invoice.row_count": invoicesQuery.data.items.length },
       () =>
-        invoicesQuery.data.items.map((invoice) => ({
-          id: invoice.id,
-          invoiceNumber: invoice.invoiceNumber,
-          status: invoice.status,
-          companyName: invoice.companyName || invoice.companyId.slice(0, 8),
-          customerName: invoice.customerName || invoice.customerId.slice(0, 8),
-          invoiceDate: toDateInputValue(invoice.invoiceDate),
-          dueDate: toDateInputValue(invoice.dueDate),
-        }))
+        invoicesQuery.data.items.map((invoice) => {
+          // If status is a number, map to string; otherwise, use as is
+          let status: InvoiceStatus;
+          if (typeof invoice.status === "number") {
+            status = statusNumberToString[invoice.status] ?? "Draft";
+          } else {
+            status = invoice.status;
+          }
+          return {
+            id: invoice.id,
+            invoiceNumber: invoice.invoiceNumber,
+            status,
+            companyName: invoice.companyName || invoice.companyId.slice(0, 8),
+            customerName: invoice.customerName || invoice.customerId.slice(0, 8),
+            invoiceDate: toDateInputValue(invoice.invoiceDate),
+            dueDate: toDateInputValue(invoice.dueDate),
+          };
+        })
     );
 
     const sorted = [...preparedRows].sort((a, b) => {

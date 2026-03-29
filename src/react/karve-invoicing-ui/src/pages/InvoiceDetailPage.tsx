@@ -1,4 +1,13 @@
-﻿import { useState } from "react";
+﻿// Map for numeric status values (if backend sends numbers)
+const statusNumberToString: Record<number, import("../types/api").InvoiceStatus> = {
+  0: "Draft",
+  1: "Sent",
+  2: "Viewed",
+  3: "Paid",
+  4: "Overdue",
+  5: "Canceled",
+};
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
@@ -116,7 +125,9 @@ export function InvoiceDetailPage() {
             <DetailRow label="Invoice #">#{invoice.invoiceNumber}</DetailRow>
             <DetailRow label="Company">{invoice.companyName || invoice.companyId}</DetailRow>
             <DetailRow label="Customer">{invoice.customerName || invoice.customerId}</DetailRow>
-            <DetailRow label="Status"><StatusBadge status={invoice.status} /></DetailRow>
+            <DetailRow label="Status">
+              <StatusBadge status={typeof invoice.status === "number" ? (statusNumberToString[invoice.status] ?? "Draft") : invoice.status} />
+            </DetailRow>
             <DetailRow label="Invoice Date">{toDateInputValue(invoice.invoiceDate)}</DetailRow>
             <DetailRow label="Due Date">{toDateInputValue(invoice.dueDate)}</DetailRow>
           </Paper>
