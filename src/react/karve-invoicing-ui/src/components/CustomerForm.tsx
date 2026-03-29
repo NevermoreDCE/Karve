@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { Button, Stack, TextField } from "@mui/material";
 import type { CreateCustomerRequest } from "../types/api";
 
 export interface CustomerFormValues extends CreateCustomerRequest {}
@@ -27,9 +28,9 @@ export function CustomerForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
-      <label>
-        Name
-        <input
+      <Stack spacing={2}>
+        <TextField
+          label="Name"
           {...register("name", {
             required: "Customer name is required.",
             minLength: {
@@ -41,13 +42,12 @@ export function CustomerForm({
               message: "Customer name must be between 1 and 100 characters.",
             },
           })}
+          error={!!errors.name}
+          helperText={errors.name?.message}
         />
-      </label>
-      {errors.name ? <p role="alert">{errors.name.message}</p> : null}
 
-      <label>
-        Email
-        <input
+        <TextField
+          label="Email"
           type="email"
           {...register("email", {
             required: "Email is required.",
@@ -56,13 +56,14 @@ export function CustomerForm({
               message: "A valid email address is required.",
             },
           })}
+          error={!!errors.email}
+          helperText={errors.email?.message}
         />
-      </label>
-      {errors.email ? <p role="alert">{errors.email.message}</p> : null}
 
-      <label>
-        Billing Address
-        <input
+        <TextField
+          label="Billing Address"
+          multiline
+          minRows={2}
           {...register("billingAddress", {
             required: "Billing address is required.",
             minLength: {
@@ -74,27 +75,28 @@ export function CustomerForm({
               message: "Billing address must be between 1 and 500 characters.",
             },
           })}
+          error={!!errors.billingAddress}
+          helperText={errors.billingAddress?.message}
         />
-      </label>
-      {errors.billingAddress ? <p role="alert">{errors.billingAddress.message}</p> : null}
 
-      <div style={{ marginTop: 8 }}>
-        <button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Saving..." : submitLabel}
-        </button>
-        {onCancel ? (
-          <button
-            type="button"
-            style={{ marginLeft: 8 }}
-            onClick={() => {
-              reset(initialValues);
-              onCancel();
-            }}
-          >
-            Cancel
-          </button>
-        ) : null}
-      </div>
+        <Stack direction="row" spacing={1} justifyContent="flex-end">
+          {onCancel ? (
+            <Button
+              type="button"
+              variant="outlined"
+              onClick={() => {
+                reset(initialValues);
+                onCancel();
+              }}
+            >
+              Cancel
+            </Button>
+          ) : null}
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : submitLabel}
+          </Button>
+        </Stack>
+      </Stack>
     </form>
   );
 }

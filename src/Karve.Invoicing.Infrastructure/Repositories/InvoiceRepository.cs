@@ -20,7 +20,12 @@ public class InvoiceRepository : IInvoiceRepository
 
     public async Task<Invoice?> GetByIdAsync(Guid id)
     {
-        var invoice = await _context.Invoices.FindAsync(id);
+        var invoice = await _context.Invoices
+            .Include(i => i.Company)
+            .Include(i => i.Customer)
+            .Include(i => i.LineItems)
+            .Include(i => i.Payments)
+            .FirstOrDefaultAsync(i => i.Id == id);
         if (invoice is not null)
         {
             return invoice;
@@ -42,6 +47,13 @@ public class InvoiceRepository : IInvoiceRepository
     public async Task AddAsync(Invoice entity)
     {
         EnsureCompanyAccess(entity.CompanyId);
+        // Assign the next InvoiceNumber for this company
+        var maxNumber = await _context.Invoices
+            .IgnoreQueryFilters()
+            .Where(i => i.CompanyId == entity.CompanyId)
+            .Select(i => (int?)i.InvoiceNumber)
+            .MaxAsync();
+        entity.InvoiceNumber = (maxNumber ?? 0) + 1;
         await _context.Invoices.AddAsync(entity);
         await _context.SaveChangesAsync();
     }
@@ -79,7 +91,10 @@ public class InvoiceRepository : IInvoiceRepository
     public async Task<PagedResult<Invoice>> GetPagedAsync(Guid companyId, int page = 1, int pageSize = 20, string? filter = null)
     {
         EnsureCompanyAccess(companyId);
-        var query = _context.Invoices.Where(i => i.CompanyId == companyId);
+        var query = _context.Invoices
+            .Include(i => i.Company)
+            .Include(i => i.Customer)
+            .Where(i => i.CompanyId == companyId);
         if (!string.IsNullOrEmpty(filter))
         {
             query = query.Where(i => i.Status.ToString().Contains(filter));

@@ -1,6 +1,6 @@
 # Task Group A - Look and Feel
 ## A.1 - apply style guide
-Apply all style elements from the Karve-Invoicing-UI-Style-Guide.md to all screens of the frontend
+Apply all style elements from the Karve-Invoicing-UI-Style-Guide.md to all screens of the frontend, also using the Karve-Invoicing-UI-Example.png as a reference
 - detect user preference for dark mode or light mode and default to that value, but use a cookie to record the user's preferences
 - allow for manual selection of dark/light mode using a small toggle located on a "user preferences" modal/dialog that can be opened from a settings icon on the header bar near the logout button
 ## A.2 - update invoices screen 

@@ -28,6 +28,18 @@ public class InvoiceDto
     /// </summary>
     public DateTime DueDate { get; set; }
     /// <summary>
+    /// Human-readable sequential number, unique per company.
+    /// </summary>
+    public int InvoiceNumber { get; set; }
+    /// <summary>
+    /// The name of the company that owns this invoice.
+    /// </summary>
+    public string CompanyName { get; set; } = string.Empty;
+    /// <summary>
+    /// The name of the customer on this invoice.
+    /// </summary>
+    public string CustomerName { get; set; } = string.Empty;
+    /// <summary>
     /// The status of the invoice.
     /// </summary>
     public InvoiceStatus Status { get; set; }

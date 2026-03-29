@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, type ReactNode } from "react";
 import { useMsal, useIsAuthenticated } from "@azure/msal-react";
-import { InteractionRequiredAuthError } from "@azure/msal-browser";
+import { InteractionRequiredAuthError, InteractionStatus } from "@azure/msal-browser";
 import { apiLoginRequest } from "./authConfig";
 import { configureApiClient } from "../api/apiClient";
 import {
@@ -26,13 +26,16 @@ function readClaim(
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const { instance, accounts } = useMsal();
+  const { instance, accounts, inProgress } = useMsal();
   const isAuthenticated = useIsAuthenticated();
   const isE2eAuthBypass = import.meta.env.VITE_E2E_AUTH_BYPASS === "true";
   const effectiveIsAuthenticated = isE2eAuthBypass || isAuthenticated;
 
   const login = () => {
     if (isE2eAuthBypass) {
+      return;
+    }
+    if (inProgress !== InteractionStatus.None) {
       return;
     }
     instance.loginRedirect(apiLoginRequest);
@@ -60,22 +63,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return response.accessToken;
     } catch (error) {
       if (error instanceof InteractionRequiredAuthError) {
-        instance.acquireTokenRedirect({
-          ...apiLoginRequest,
-          account: accounts[0],
-        });
+        if (inProgress === InteractionStatus.None) {
+          instance.acquireTokenRedirect({
+            ...apiLoginRequest,
+            account: accounts[0],
+          });
+        }
       }
       return null;
+    }
+  };
+
+  const handleUnauthorized = () => {
+    if (!effectiveIsAuthenticated) {
+      login();
     }
   };
 
   // Wire up Axios interceptors whenever auth state changes so the API client
   // always has a fresh token getter and a valid unauthorized handler.
   useEffect(() => {
-    const cleanup = configureApiClient(getAccessToken, login);
+    const cleanup = configureApiClient(getAccessToken, handleUnauthorized);
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveIsAuthenticated]);
+  }, [effectiveIsAuthenticated, inProgress]);
 
   useEffect(() => {
     if (isE2eAuthBypass) {

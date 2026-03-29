@@ -5,7 +5,7 @@ import axios, {
   type AxiosError,
 } from "axios";
 import { context, propagation, trace, SpanStatusCode, type Span } from "@opentelemetry/api";
-import toast from "react-hot-toast";
+import { enqueueSnackbar } from "notistack";
 import {
   annotateSpanWithTelemetryContext,
   getAppTracer,
@@ -173,11 +173,11 @@ export function configureApiClient(
       if (status === 401) {
         onUnauthorized();
       } else if (status === 403) {
-        toast.error("Access denied for this company or resource.");
+        enqueueSnackbar("Access denied for this company or resource.", { variant: "error" });
       } else if (status && status >= 500) {
-        toast.error("Server error. Please try again shortly.");
+        enqueueSnackbar("Server error. Please try again shortly.", { variant: "error" });
       } else if (status && status >= 400) {
-        toast.error("Request failed. Please check the input and retry.");
+        enqueueSnackbar("Request failed. Please check the input and retry.", { variant: "warning" });
       }
       return Promise.reject(error);
     }

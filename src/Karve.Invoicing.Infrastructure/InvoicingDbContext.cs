@@ -172,6 +172,11 @@ public class InvoicingDbContext : DbContext
             .Property(p => p.Sku)
             .IsRequired();
 
+        // InvoiceNumber: auto-increment per company, unique per company, indexed
+        modelBuilder.Entity<Invoice>()
+            .HasIndex(i => new { i.CompanyId, i.InvoiceNumber })
+            .IsUnique();
+
         modelBuilder.Entity<Invoice>()
             .Property(i => i.InvoiceDate)
             .IsRequired();

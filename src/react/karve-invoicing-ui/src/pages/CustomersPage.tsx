@@ -1,14 +1,22 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useEffect } from "react";
-import toast from "react-hot-toast";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import { Alert, Box, Button, Stack, Typography } from "@mui/material";
 import {
   CustomerForm,
   type CustomerFormValues,
 } from "../components/CustomerForm";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { DataTable, type Column } from "../components/DataTable";
 import { LoadingSpinner } from "../components/LoadingSpinner";
+import { Modal } from "../components/Modal";
+import { useSnackbar } from "../hooks/useSnackbar";
 import {
   useCreateCustomer,
   useCustomers,
+  useDeleteCustomer,
   useUpdateCustomer,
 } from "../hooks/useCustomers";
 
@@ -19,30 +27,41 @@ const emptyForm: CustomerFormValues = {
 };
 
 export function CustomersPage() {
-  const customersQuery = useCustomers({ page: 1, pageSize: 50 });
+  const { enqueueSnackbar } = useSnackbar();
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
+  const customersQuery = useCustomers({ page: page + 1, pageSize });
   const createCustomerMutation = useCreateCustomer();
   const updateCustomerMutation = useUpdateCustomer();
+  const deleteCustomerMutation = useDeleteCustomer();
 
+  const [modalOpen, setModalOpen] = useState(false);
   const [editingCustomerId, setEditingCustomerId] = useState<string | null>(null);
   const [form, setForm] = useState<CustomerFormValues>(emptyForm);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleteTargetName, setDeleteTargetName] = useState<string>("");
 
   const isEditing = editingCustomerId !== null;
 
-  const beginEdit = (customer: {
+  const openCreate = () => {
+    setEditingCustomerId(null);
+    setForm(emptyForm);
+    setModalOpen(true);
+  };
+
+  const openEdit = (customer: {
     id: string;
     name: string;
     email: string;
     billingAddress: string;
   }) => {
     setEditingCustomerId(customer.id);
-    setForm({
-      name: customer.name,
-      email: customer.email,
-      billingAddress: customer.billingAddress,
-    });
+    setForm({ name: customer.name, email: customer.email, billingAddress: customer.billingAddress });
+    setModalOpen(true);
   };
 
-  const resetForm = () => {
+  const closeModal = () => {
+    setModalOpen(false);
     setEditingCustomerId(null);
     setForm(emptyForm);
   };
@@ -50,85 +69,119 @@ export function CustomersPage() {
   const handleSubmit = async (values: CustomerFormValues) => {
     if (isEditing && editingCustomerId) {
       await updateCustomerMutation.mutateAsync({ id: editingCustomerId, data: values });
-      resetForm();
-      return;
+    } else {
+      await createCustomerMutation.mutateAsync(values);
     }
+    closeModal();
+  };
 
-    await createCustomerMutation.mutateAsync(values);
-    resetForm();
+  const handleDeleteConfirm = async () => {
+    if (!deleteTargetId) return;
+    await deleteCustomerMutation.mutateAsync(deleteTargetId);
+    setDeleteTargetId(null);
   };
 
   useEffect(() => {
-    if (createCustomerMutation.isSuccess) {
-      toast.success("Customer created.");
-    }
-  }, [createCustomerMutation.isSuccess]);
+    if (createCustomerMutation.isSuccess) enqueueSnackbar("Customer created.", { variant: "success" });
+  }, [createCustomerMutation.isSuccess, enqueueSnackbar]);
 
   useEffect(() => {
-    if (updateCustomerMutation.isSuccess) {
-      toast.success("Customer updated.");
-    }
-  }, [updateCustomerMutation.isSuccess]);
+    if (updateCustomerMutation.isSuccess) enqueueSnackbar("Customer updated.", { variant: "success" });
+  }, [updateCustomerMutation.isSuccess, enqueueSnackbar]);
+
+  useEffect(() => {
+    if (deleteCustomerMutation.isSuccess) enqueueSnackbar("Customer deleted.", { variant: "success" });
+  }, [deleteCustomerMutation.isSuccess, enqueueSnackbar]);
+
+  const rows = customersQuery.data?.items ?? [];
+
+  const columns: Column<(typeof rows)[number]>[] = [
+    { id: "name", label: "Name" },
+    { id: "email", label: "Email" },
+    { id: "billingAddress", label: "Billing Address" },
+    {
+      id: "actions",
+      label: "Actions",
+      align: "right",
+      render: (customer) => (
+        <Stack direction="row" spacing={1} justifyContent="flex-end">
+          <Button size="small" variant="outlined" startIcon={<EditOutlinedIcon />} onClick={() => openEdit(customer)}>
+            Edit
+          </Button>
+          <Button
+            size="small"
+            color="error"
+            variant="contained"
+            startIcon={<DeleteOutlineIcon />}
+            onClick={() => {
+              setDeleteTargetId(customer.id);
+              setDeleteTargetName(customer.name);
+            }}
+          >
+            Delete
+          </Button>
+        </Stack>
+      ),
+    },
+  ];
 
   return (
-    <section>
-      <h1>Customers</h1>
-      <p>Manage customer records used for invoice billing.</p>
+    <Stack spacing={2}>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+        <Box>
+          <Typography variant="h4" component="h1">Customers</Typography>
+          <Typography variant="body2" color="text.secondary">Manage customer records used for invoice billing.</Typography>
+        </Box>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={openCreate}>Create Customer</Button>
+      </Stack>
 
-      <div style={{ marginBottom: 20 }}>
-        <h2>{isEditing ? "Edit Customer" : "Create Customer"}</h2>
+      {customersQuery.isLoading ? <LoadingSpinner label="Loading customers..." /> : null}
+      {customersQuery.isError ? <Alert severity="error">{customersQuery.error.message}</Alert> : null}
+
+      {!customersQuery.isLoading && customersQuery.data ? (
+        <DataTable
+          columns={columns}
+          rows={rows}
+          keySelector={(row) => row.id}
+          page={page}
+          pageSize={pageSize}
+          totalCount={customersQuery.data.totalCount}
+          onPageChange={setPage}
+          onPageSizeChange={(nextPageSize) => {
+            setPageSize(nextPageSize);
+            setPage(0);
+          }}
+          emptyMessage="No customers found."
+        />
+      ) : null}
+
+      <Modal isOpen={modalOpen} onClose={closeModal} title={isEditing ? "Edit Customer" : "Create Customer"}>
         <CustomerForm
           key={editingCustomerId ?? "customer-create"}
           initialValues={form}
           onSubmit={handleSubmit}
           submitLabel={isEditing ? "Save Customer" : "Create Customer"}
           isSubmitting={createCustomerMutation.isPending || updateCustomerMutation.isPending}
-          onCancel={isEditing ? resetForm : undefined}
+          onCancel={closeModal}
         />
-      </div>
 
-      {customersQuery.isLoading ? <LoadingSpinner label="Loading customers..." /> : null}
-      {customersQuery.isError ? <p role="alert">{customersQuery.error.message}</p> : null}
+        {(createCustomerMutation.isError || updateCustomerMutation.isError) ? (
+          <Alert severity="error" sx={{ mt: 1.5 }}>
+            {createCustomerMutation.error?.message ?? updateCustomerMutation.error?.message}
+          </Alert>
+        ) : null}
+      </Modal>
 
-      {!customersQuery.isLoading && customersQuery.data ? (
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Billing Address</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {customersQuery.data.items.length === 0 ? (
-              <tr>
-                <td colSpan={4}>No customers found.</td>
-              </tr>
-            ) : (
-              customersQuery.data.items.map((customer) => (
-                <tr key={customer.id}>
-                  <td>{customer.name}</td>
-                  <td>{customer.email}</td>
-                  <td>{customer.billingAddress}</td>
-                  <td>
-                    <button type="button" onClick={() => beginEdit(customer)}>
-                      Edit
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      ) : null}
-
-      {createCustomerMutation.isError ? (
-        <p role="alert">{createCustomerMutation.error.message}</p>
-      ) : null}
-      {updateCustomerMutation.isError ? (
-        <p role="alert">{updateCustomerMutation.error.message}</p>
-      ) : null}
-    </section>
+      <ConfirmDialog
+        isOpen={deleteTargetId !== null}
+        title="Delete Customer"
+        message={`Are you sure you want to delete "${deleteTargetName}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        isDangerous
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTargetId(null)}
+      />
+    </Stack>
   );
 }
+

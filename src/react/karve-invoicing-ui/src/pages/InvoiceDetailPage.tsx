@@ -1,8 +1,28 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import toast from "react-hot-toast";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Typography,
+} from "@mui/material";
 import { InvoiceForm, type InvoiceFormValues } from "../components/InvoiceForm";
 import { LoadingSpinner } from "../components/LoadingSpinner";
+import { StatusBadge } from "../components/StatusBadge";
+import { useSnackbar } from "../hooks/useSnackbar";
 import {
   useDeleteInvoice,
   useInvoice,
@@ -13,6 +33,15 @@ function toDateInputValue(isoDate: string): string {
   return isoDate.slice(0, 10);
 }
 
+function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Stack direction={{ xs: "column", sm: "row" }} spacing={0.75} sx={{ py: 0.75, borderBottom: 1, borderColor: "divider" }}>
+      <Typography sx={{ width: { sm: 130 }, fontWeight: 700 }} color="text.secondary">{label}</Typography>
+      <Typography variant="body2">{children}</Typography>
+    </Stack>
+  );
+}
+
 export function InvoiceDetailPage() {
   const params = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -21,52 +50,37 @@ export function InvoiceDetailPage() {
   const invoiceQuery = useInvoice(invoiceId);
   const updateInvoiceMutation = useUpdateInvoice();
   const deleteInvoiceMutation = useDeleteInvoice();
+  const { enqueueSnackbar } = useSnackbar();
 
   const [isEditing, setIsEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleUpdate = async (values: InvoiceFormValues) => {
-    if (!invoiceId) {
-      return;
-    }
+    if (!invoiceId) return;
     await updateInvoiceMutation.mutateAsync({ id: invoiceId, data: values });
     setIsEditing(false);
   };
 
-  const handleDelete = async () => {
-    if (!invoiceId) {
-      return;
-    }
-
-    const approved = window.confirm("Delete this invoice?");
-    if (!approved) {
-      return;
-    }
-
+  const handleDeleteConfirm = async () => {
+    if (!invoiceId) return;
+    setConfirmDelete(false);
     await deleteInvoiceMutation.mutateAsync(invoiceId);
-    toast.success("Invoice deleted.");
+    enqueueSnackbar("Invoice deleted.", { variant: "success" });
     navigate("/invoices");
   };
 
   if (!invoiceId) {
     return (
-      <section>
-        <h1>Invoice Details</h1>
-        <p>Missing invoice id.</p>
-      </section>
+      <Stack spacing={1}>
+        <Typography variant="h4">Invoice Details</Typography>
+        <Typography color="text.secondary">Missing invoice id.</Typography>
+      </Stack>
     );
   }
 
-  if (invoiceQuery.isLoading) {
-    return <LoadingSpinner label="Loading invoice details..." />;
-  }
-
-  if (invoiceQuery.isError) {
-    return <p role="alert">{invoiceQuery.error.message}</p>;
-  }
-
-  if (!invoiceQuery.data) {
-    return <p>Invoice not found.</p>;
-  }
+  if (invoiceQuery.isLoading) return <LoadingSpinner label="Loading invoice details..." />;
+  if (invoiceQuery.isError) return <Alert severity="error">{invoiceQuery.error.message}</Alert>;
+  if (!invoiceQuery.data) return <Alert severity="info">Invoice not found.</Alert>;
 
   const invoice = invoiceQuery.data;
   const invoiceFormInitialValues: InvoiceFormValues = {
@@ -77,16 +91,16 @@ export function InvoiceDetailPage() {
   };
 
   return (
-    <section>
-      <p>
-        <Link to="/invoices">Back to Invoices</Link>
-      </p>
+    <Stack spacing={2}>
+      <Button component={Link} to="/invoices" variant="text" startIcon={<ArrowBackIcon />} sx={{ alignSelf: "flex-start" }}>
+        Back to Invoices
+      </Button>
 
-      <h1>Invoice Details</h1>
+      <Typography variant="h4" component="h1">Invoice #{invoice.invoiceNumber}</Typography>
 
       {isEditing ? (
-        <div style={{ marginBottom: 20 }}>
-          <h2>Edit Invoice</h2>
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography variant="h6" sx={{ mb: 1.5 }}>Edit Invoice</Typography>
           <InvoiceForm
             key={`invoice-edit-${invoice.id}`}
             initialValues={invoiceFormInitialValues}
@@ -95,104 +109,115 @@ export function InvoiceDetailPage() {
             isSubmitting={updateInvoiceMutation.isPending}
             onCancel={() => setIsEditing(false)}
           />
-        </div>
+        </Paper>
       ) : (
-        <div style={{ marginBottom: 20 }}>
-          <p>
-            <strong>Invoice ID:</strong> {invoice.id}
-          </p>
-          <p>
-            <strong>Company:</strong> {invoice.companyId}
-          </p>
-          <p>
-            <strong>Customer:</strong> {invoice.customerId}
-          </p>
-          <p>
-            <strong>Status:</strong> {invoice.status}
-          </p>
-          <p>
-            <strong>Invoice Date:</strong> {toDateInputValue(invoice.invoiceDate)}
-          </p>
-          <p>
-            <strong>Due Date:</strong> {toDateInputValue(invoice.dueDate)}
-          </p>
+        <Stack spacing={2}>
+          <Paper variant="outlined" sx={{ p: 2 }}>
+            <DetailRow label="Invoice #">#{invoice.invoiceNumber}</DetailRow>
+            <DetailRow label="Company">{invoice.companyName || invoice.companyId}</DetailRow>
+            <DetailRow label="Customer">{invoice.customerName || invoice.customerId}</DetailRow>
+            <DetailRow label="Status"><StatusBadge status={invoice.status} /></DetailRow>
+            <DetailRow label="Invoice Date">{toDateInputValue(invoice.invoiceDate)}</DetailRow>
+            <DetailRow label="Due Date">{toDateInputValue(invoice.dueDate)}</DetailRow>
+          </Paper>
 
-          <button type="button" onClick={() => setIsEditing(true)}>
-            Edit Invoice
-          </button>
-          <button
-            type="button"
-            style={{ marginLeft: 8 }}
-            onClick={handleDelete}
-            disabled={deleteInvoiceMutation.isPending}
-          >
-            {deleteInvoiceMutation.isPending ? "Deleting..." : "Delete Invoice"}
-          </button>
-        </div>
+          <Stack direction="row" spacing={1}>
+            <Button variant="outlined" startIcon={<EditOutlinedIcon />} onClick={() => setIsEditing(true)}>
+              Edit Invoice
+            </Button>
+            <Button
+              color="error"
+              variant="contained"
+              startIcon={<DeleteOutlineIcon />}
+              onClick={() => setConfirmDelete(true)}
+              disabled={deleteInvoiceMutation.isPending}
+            >
+              {deleteInvoiceMutation.isPending ? "Deleting..." : "Delete Invoice"}
+            </Button>
+          </Stack>
+        </Stack>
       )}
 
-      <h2>Line Items</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Product</th>
-            <th>Qty</th>
-            <th>Unit Price</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
+        <DialogTitle>Delete Invoice?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+              Are you sure you want to delete Invoice #{invoice.invoiceNumber}? This cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="outlined" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={handleDeleteConfirm}>Delete</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Typography variant="h6" sx={{ mb: 1 }}>Line Items</Typography>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Product</TableCell>
+              <TableCell align="right">Qty</TableCell>
+              <TableCell align="right">Unit Price</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
           {invoice.lineItems.length === 0 ? (
-            <tr>
-              <td colSpan={3}>No line items.</td>
-            </tr>
+            <TableRow>
+              <TableCell colSpan={3} align="center">
+                No line items.
+              </TableCell>
+            </TableRow>
           ) : (
             invoice.lineItems.map((lineItem) => (
-              <tr key={lineItem.id}>
-                <td>{lineItem.productId.slice(0, 8)}...</td>
-                <td>{lineItem.quantity}</td>
-                <td>
-                  {lineItem.unitPriceAmount} {lineItem.unitPriceCurrency}
-                </td>
-              </tr>
+              <TableRow key={lineItem.id}>
+                <TableCell>{lineItem.productId.slice(0, 8)}...</TableCell>
+                <TableCell align="right">{lineItem.quantity}</TableCell>
+                <TableCell align="right">{lineItem.unitPriceAmount} {lineItem.unitPriceCurrency}</TableCell>
+              </TableRow>
             ))
           )}
-        </tbody>
-      </table>
+          </TableBody>
+        </Table>
+      </Paper>
 
-      <h2 style={{ marginTop: 20 }}>Payments</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Method</th>
-            <th>Amount</th>
-          </tr>
-        </thead>
-        <tbody>
+      <Paper variant="outlined" sx={{ p: 2 }}>
+        <Typography variant="h6" sx={{ mb: 1 }}>Payments</Typography>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Date</TableCell>
+              <TableCell>Method</TableCell>
+              <TableCell align="right">Amount</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
           {invoice.payments.length === 0 ? (
-            <tr>
-              <td colSpan={3}>No payments recorded.</td>
-            </tr>
+            <TableRow>
+              <TableCell colSpan={3} align="center">
+                No payments recorded.
+              </TableCell>
+            </TableRow>
           ) : (
             invoice.payments.map((payment) => (
-              <tr key={payment.id}>
-                <td>{toDateInputValue(payment.paymentDate)}</td>
-                <td>{payment.method}</td>
-                <td>
-                  {payment.amount} {payment.currency}
-                </td>
-              </tr>
+              <TableRow key={payment.id}>
+                <TableCell>{toDateInputValue(payment.paymentDate)}</TableCell>
+                <TableCell>{payment.method}</TableCell>
+                <TableCell align="right">{payment.amount} {payment.currency}</TableCell>
+              </TableRow>
             ))
           )}
-        </tbody>
-      </table>
+          </TableBody>
+        </Table>
+      </Paper>
 
       {updateInvoiceMutation.isError ? (
-        <p role="alert">{updateInvoiceMutation.error.message}</p>
+        <Alert severity="error">{updateInvoiceMutation.error.message}</Alert>
       ) : null}
       {deleteInvoiceMutation.isError ? (
-        <p role="alert">{deleteInvoiceMutation.error.message}</p>
+        <Alert severity="error">{deleteInvoiceMutation.error.message}</Alert>
       ) : null}
-    </section>
+    </Stack>
   );
 }
+

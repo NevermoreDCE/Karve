@@ -1,97 +1,67 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import type { ReactNode } from 'react'
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
-import { Toaster } from 'react-hot-toast'
+import { CssBaseline, ThemeProvider } from '@mui/material'
+import { LocalizationProvider } from '@mui/x-date-pickers'
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import { queryClient } from './api/queryClient'
 import { AuthProvider } from './auth/AuthProvider'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { Navbar } from './components/NavBar'
-import { Sidebar } from './components/Sidebar'
-import { PageContainer } from './components/PageContainer'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { AppLayout } from './layout/AppLayout'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { InvoicesPage } from './pages/InvoicesPage'
 import { InvoiceDetailPage } from './pages/InvoiceDetailPage'
 import { CustomersPage } from './pages/CustomersPage'
 import { ProductsPage } from './pages/ProductsPage'
+import { createAppTheme } from './theme/theme'
+import { SnackbarProvider } from './ui/SnackbarProvider'
+import { useThemeStore } from './state/themeStore'
 
-function ProtectedPage({ children }: { children: ReactNode }) {
+function ProtectedShell() {
   return (
     <ProtectedRoute>
-      <PageContainer sidebar={<Sidebar />}>{children}</PageContainer>
+      <AppLayout>
+        <Outlet />
+      </AppLayout>
     </ProtectedRoute>
   )
 }
 
 function App() {
+  const themeMode = useThemeStore((s) => s.themeMode)
+  const theme = createAppTheme(themeMode)
+
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <Toaster position="top-right" />
-        <BrowserRouter>
-          <AuthProvider>
-            <div className="min-h-screen">
-              <Navbar />
-              <main>
-              <Routes>
-                <Route
-                  path="/login"
-                  element={
-                    <PageContainer>
-                      <LoginPage />
-                    </PageContainer>
-                  }
-                />
-                <Route
-                  path="/"
-                  element={
-                    <ProtectedPage>
-                      <DashboardPage />
-                    </ProtectedPage>
-                  }
-                />
-                <Route
-                  path="/invoices"
-                  element={
-                    <ProtectedPage>
-                      <InvoicesPage />
-                    </ProtectedPage>
-                  }
-                />
-                <Route
-                  path="/invoices/:id"
-                  element={
-                    <ProtectedPage>
-                      <InvoiceDetailPage />
-                    </ProtectedPage>
-                  }
-                />
-                <Route
-                  path="/customers"
-                  element={
-                    <ProtectedPage>
-                      <CustomersPage />
-                    </ProtectedPage>
-                  }
-                />
-                <Route
-                  path="/products"
-                  element={
-                    <ProtectedPage>
-                      <ProductsPage />
-                    </ProtectedPage>
-                  }
-                />
-                {/* Catch-all redirect */}
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-              </main>
-            </div>
-          </AuthProvider>
-        </BrowserRouter>
-      </QueryClientProvider>
-    </ErrorBoundary>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <SnackbarProvider>
+            <BrowserRouter>
+              <AuthProvider>
+                <Routes>
+                  <Route path="/login" element={<LoginPage />} />
+
+                  <Route element={<ProtectedShell />}>
+                    <Route path="/" element={<DashboardPage />} />
+                    <Route path="/invoices" element={<InvoicesPage />} />
+                    <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
+                    <Route path="/customers" element={<CustomersPage />} />
+                    <Route path="/products" element={<ProductsPage />} />
+                  </Route>
+
+                  {/* Catch-all redirect */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </AuthProvider>
+            </BrowserRouter>
+          </SnackbarProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
+      </LocalizationProvider>
+    </ThemeProvider>
   )
 }
 

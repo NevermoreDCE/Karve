@@ -1,5 +1,6 @@
 import type { ErrorInfo, ReactNode } from "react";
 import { Component } from "react";
+import { Alert, AlertTitle, Box, Button } from "@mui/material";
 import { reportUiError } from "../observability/otel";
 
 interface ErrorBoundaryProps {
@@ -28,10 +29,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   public render(): ReactNode {
     if (this.state.hasError) {
       return (
-        <section>
-          <h2>Something went wrong.</h2>
-          <p>Please refresh the page or try another section.</p>
-        </section>
+        <Box sx={{ p: 3 }}>
+          <Alert
+            severity="error"
+            action={
+              <Button color="inherit" size="small" onClick={() => window.location.reload()}>
+                Refresh
+              </Button>
+            }
+          >
+            <AlertTitle>Something went wrong</AlertTitle>
+            Please refresh the page or try another section.
+          </Alert>
+        </Box>
       );
     }
 

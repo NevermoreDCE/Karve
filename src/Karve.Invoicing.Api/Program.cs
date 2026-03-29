@@ -176,6 +176,12 @@ public partial class Program
         //var db = app.Services.GetRequiredService<InvoicingDbContext>();
         //db.Database.EnsureCreated();
 
+        using (var migrationScope = app.Services.CreateScope())
+        {
+            var db = migrationScope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
+            db.Database.Migrate();
+        }
+
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
         {
@@ -240,7 +246,6 @@ public partial class Program
             try
             {
                 var db = scope.ServiceProvider.GetRequiredService<InvoicingDbContext>();
-                db.Database.EnsureCreated();
                 DataSeeder.Seed(db);
                 seedActivity?.SetStatus(ActivityStatusCode.Ok);
             }

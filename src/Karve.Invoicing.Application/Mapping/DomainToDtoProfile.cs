@@ -18,7 +18,9 @@ public class DomainToDtoProfile : Profile
             .ForMember(dest => dest.UnitPriceAmount, opt => opt.MapFrom(src => src.UnitPrice.Amount))
             .ForMember(dest => dest.UnitPriceCurrency, opt => opt.MapFrom(src => src.UnitPrice.Currency));
 
-        CreateMap<Invoice, InvoiceDto>();
+        CreateMap<Invoice, InvoiceDto>()
+            .ForMember(dest => dest.CompanyName, opt => opt.MapFrom(src => src.Company != null ? src.Company.Name : string.Empty))
+            .ForMember(dest => dest.CustomerName, opt => opt.MapFrom(src => src.Customer != null ? src.Customer.Name : string.Empty));
 
         CreateMap<InvoiceLineItem, InvoiceLineItemDto>()
             .ForMember(dest => dest.UnitPriceAmount, opt => opt.MapFrom(src => src.UnitPrice.Amount))

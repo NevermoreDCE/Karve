@@ -5,7 +5,7 @@ import { MsalProvider } from '@azure/msal-react'
 import { msalConfig } from './auth/authConfig'
 import { initializeOpenTelemetry } from './observability/otel'
 import './index.css'
-import App from './App.tsx'
+import App from './App'
 
 initializeOpenTelemetry()
 

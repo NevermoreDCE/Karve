@@ -11,6 +11,9 @@ public class Invoice
     public Guid CustomerId { get; set; }
     public Customer Customer { get; set; } = null!;
 
+    /// <summary>Human-readable sequential number, unique per company.</summary>
+    public int InvoiceNumber { get; set; }
+
     public DateTime InvoiceDate { get; set; }
     public DateTime DueDate { get; set; }
     public InvoiceStatus Status { get; set; }

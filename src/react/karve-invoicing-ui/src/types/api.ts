@@ -54,8 +54,11 @@ export interface PaymentDto {
 
 export interface InvoiceDto {
   id: string;
+  invoiceNumber: number;
   companyId: string;
+  companyName: string;
   customerId: string;
+  customerName: string;
   invoiceDate: string; // ISO-8601
   dueDate: string;     // ISO-8601
   status: InvoiceStatus;

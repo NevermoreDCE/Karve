@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useMsal } from "@azure/msal-react";
+import { InteractionStatus } from "@azure/msal-browser";
 import { getCompanies } from "../api/companiesApi";
 import { useTenantStore } from "../state/tenantStore";
 import type { CompanyDto } from "../types/api";
@@ -29,7 +30,7 @@ function readClaim(
 }
 
 export function useCurrentUser(): CurrentUserResult {
-  const { accounts } = useMsal();
+  const { accounts, inProgress } = useMsal();
   const account = accounts[0];
   const claims = (account?.idTokenClaims ?? {}) as Record<string, unknown>;
 
@@ -41,7 +42,7 @@ export function useCurrentUser(): CurrentUserResult {
   const companiesQuery = useQuery({
     queryKey: ["current-user", "memberships"],
     queryFn: getCompanies,
-    enabled: !!account,
+    enabled: !!account && inProgress === InteractionStatus.None,
   });
 
   useEffect(() => {

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
 import { InteractionStatus } from "@azure/msal-browser";
+import { Box, CircularProgress, Typography } from "@mui/material";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -23,7 +24,14 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   // MSAL is still processing the redirect response — do not redirect yet.
   if (inProgress !== InteractionStatus.None) {
-    return <div className="auth-loading">Authenticating…</div>;
+    return (
+      <Box sx={{ minHeight: "60vh", display: "grid", placeItems: "center" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+          <CircularProgress size={20} />
+          <Typography variant="body2" color="text.secondary">Authenticating...</Typography>
+        </Box>
+      </Box>
+    );
   }
 
   if (!isAuthenticated) {
