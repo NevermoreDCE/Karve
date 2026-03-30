@@ -144,7 +144,7 @@ export function InvoicesPage() {
         <Button
           component={Link}
           to={`/invoices/${row.id}`}
-          variant="text"
+          variant="contained"
           size="small"
           startIcon={<VisibilityOutlinedIcon fontSize="small" />}
         >

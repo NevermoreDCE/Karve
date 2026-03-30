@@ -105,7 +105,7 @@ export function CustomersPage() {
       align: "right",
       render: (customer) => (
         <Stack direction="row" spacing={1} justifyContent="flex-end">
-          <Button size="small" variant="outlined" startIcon={<EditOutlinedIcon />} onClick={() => openEdit(customer)}>
+          <Button size="small" variant="contained" startIcon={<EditOutlinedIcon />} onClick={() => openEdit(customer)}>
             Edit
           </Button>
           <Button

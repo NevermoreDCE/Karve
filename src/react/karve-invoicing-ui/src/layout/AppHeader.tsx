@@ -37,17 +37,30 @@ export function AppHeader({ onMenuClick }: AppHeaderProps) {
   const [openPreferences, setOpenPreferences] = useState(false);
 
   const displayName = profile.displayName ?? profile.email ?? "";
+  const selectedCompany = memberships.find((c) => c.id === selectedCompanyId);
+  const companyName = selectedCompany?.name ?? "Company";
 
   return (
     <>
-      <AppBar position="fixed" color="default" elevation={0} sx={{ borderBottom: 1, borderColor: "divider" }}>
+      <AppBar position="fixed" color="default" elevation={0} sx={{ borderBottom: 1, borderColor: "divider", zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <Toolbar sx={{ gap: 1.5 }}>
           <IconButton edge="start" color="inherit" onClick={onMenuClick} sx={{ display: { md: "none" } }}>
             <MenuIcon />
           </IconButton>
 
+          <Typography
+            sx={{
+              fontFamily: "'Uncial Antiqua', serif",
+              fontSize: "2.5rem",
+              fontWeight: 700,
+              mr: 2,
+            }}
+          >
+            Karve
+          </Typography>
+
           <Box sx={{ minWidth: 220 }}>
-            <Typography variant="h6" component="h1">Karve Invoicing</Typography>
+            <Typography variant="h6" component="h1">{companyName}</Typography>
             {isAuthenticated && displayName ? (
               <Typography variant="caption" color="text.secondary">{displayName}</Typography>
             ) : null}
