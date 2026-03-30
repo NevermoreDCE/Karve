@@ -2,6 +2,7 @@ using AutoMapper;
 using FluentValidation;
 using FluentValidation.Results;
 using Karve.Invoicing.Api.Controllers;
+using Karve.Invoicing.Application.BackgroundJobs;
 using Karve.Invoicing.Application.DTOs;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Responses;
@@ -23,6 +24,7 @@ public class InvoicesControllerTests
         var currentUser = MockCurrentUserWithSingleCompany(out var companyId);
         var createValidator = new Mock<IValidator<CreateInvoiceRequest>>();
         var updateValidator = new Mock<IValidator<UpdateInvoiceRequest>>();
+        var backgroundJobQueue = new Mock<IBackgroundJobQueue>();
 
         var invoices = new List<Invoice>
         {
@@ -68,7 +70,7 @@ public class InvoicesControllerTests
                 Status = i.Status
             }).ToList());
 
-        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
+        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object, backgroundJobQueue.Object);
 
         var result = await controller.Get(1, 20, null);
 
@@ -87,6 +89,7 @@ public class InvoicesControllerTests
         var currentUser = MockCurrentUserWithSingleCompany(out var companyId);
         var createValidator = new Mock<IValidator<CreateInvoiceRequest>>();
         var updateValidator = new Mock<IValidator<UpdateInvoiceRequest>>();
+        var backgroundJobQueue = new Mock<IBackgroundJobQueue>();
 
         var request = new CreateInvoiceRequest
         {
@@ -126,7 +129,7 @@ public class InvoicesControllerTests
                 Status = entity.Status
             });
 
-        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
+        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object, backgroundJobQueue.Object);
 
         var result = await controller.Post(request);
 
@@ -148,6 +151,7 @@ public class InvoicesControllerTests
         var currentUser = MockCurrentUserWithSingleCompany(out _);
         var createValidator = new Mock<IValidator<CreateInvoiceRequest>>();
         var updateValidator = new Mock<IValidator<UpdateInvoiceRequest>>();
+        var backgroundJobQueue = new Mock<IBackgroundJobQueue>();
 
         var request = new CreateInvoiceRequest
         {
@@ -161,7 +165,7 @@ public class InvoicesControllerTests
             .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult(new[] { new ValidationFailure("DueDate", "Due date must be after invoice date") }));
 
-        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
+        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object, backgroundJobQueue.Object);
 
         var result = await controller.Post(request);
 
@@ -180,6 +184,7 @@ public class InvoicesControllerTests
         var currentUser = MockCurrentUserWithSingleCompany(out var companyId);
         var createValidator = new Mock<IValidator<CreateInvoiceRequest>>();
         var updateValidator = new Mock<IValidator<UpdateInvoiceRequest>>();
+        var backgroundJobQueue = new Mock<IBackgroundJobQueue>();
 
         var id = Guid.NewGuid();
         var request = new UpdateInvoiceRequest
@@ -220,7 +225,7 @@ public class InvoicesControllerTests
                 Status = request.Status
             });
 
-        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
+        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object, backgroundJobQueue.Object);
 
         var result = await controller.Put(id, request);
 
@@ -240,6 +245,7 @@ public class InvoicesControllerTests
         var currentUser = MockCurrentUserWithSingleCompany(out _);
         var createValidator = new Mock<IValidator<CreateInvoiceRequest>>();
         var updateValidator = new Mock<IValidator<UpdateInvoiceRequest>>();
+        var backgroundJobQueue = new Mock<IBackgroundJobQueue>();
 
         var id = Guid.NewGuid();
         var request = new UpdateInvoiceRequest
@@ -254,7 +260,7 @@ public class InvoicesControllerTests
             .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult(new[] { new ValidationFailure("DueDate", "Due date must be after invoice date") }));
 
-        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
+        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object, backgroundJobQueue.Object);
 
         var result = await controller.Put(id, request);
 
@@ -273,6 +279,7 @@ public class InvoicesControllerTests
         var currentUser = MockCurrentUserWithSingleCompany(out var companyId);
         var createValidator = new Mock<IValidator<CreateInvoiceRequest>>();
         var updateValidator = new Mock<IValidator<UpdateInvoiceRequest>>();
+        var backgroundJobQueue = new Mock<IBackgroundJobQueue>();
 
         var id = Guid.NewGuid();
         var invoice = new Invoice
@@ -289,7 +296,7 @@ public class InvoicesControllerTests
             .Setup(r => r.GetByIdAsync(id))
             .ReturnsAsync(invoice);
 
-        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object);
+        var controller = new InvoicesController(repository.Object, mapper.Object, currentUser.Object, createValidator.Object, updateValidator.Object, backgroundJobQueue.Object);
 
         var result = await controller.Delete(id);
 

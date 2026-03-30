@@ -2,6 +2,7 @@
 import { Link } from "react-router-dom";
 import AddIcon from "@mui/icons-material/Add";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import ChecklistIcon from "@mui/icons-material/Checklist";
 import {
   Alert,
   Box,
@@ -9,13 +10,14 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { useMsal } from "@azure/msal-react";
 import { InvoiceForm, type InvoiceFormValues } from "../components/InvoiceForm";
 import { DataTable, type Column } from "../components/DataTable";
 import { LoadingSpinner } from "../components/LoadingSpinner";
 import { Modal } from "../components/Modal";
 import { StatusBadge } from "../components/StatusBadge";
 import { useSnackbar } from "../hooks/useSnackbar";
-import { useCreateInvoice, useInvoices } from "../hooks/useInvoices";
+import { useCreateInvoice, useInvoices, useRunOverdueCheck } from "../hooks/useInvoices";
 import { runUiSpan } from "../observability/otel";
 import type { InvoiceStatus } from "../types/api";
 
@@ -40,6 +42,27 @@ function getDefaultDueDate(): string {
   return due.toISOString().slice(0, 10);
 }
 
+function readClaim(
+  claims: Record<string, unknown> | undefined,
+  name: string
+): string | string[] | null {
+  const value = claims?.[name];
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value;
+  return null;
+}
+
+function isUserAdmin(claims: Record<string, unknown> | undefined): boolean {
+  const roles = readClaim(claims, "roles");
+  if (Array.isArray(roles)) {
+    return roles.includes("Admin");
+  }
+  if (typeof roles === "string") {
+    return roles === "Admin";
+  }
+  return false;
+}
+
 export function InvoicesPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [page, setPage] = useState(0);
@@ -47,6 +70,12 @@ export function InvoicesPage() {
   const [orderBy, setOrderBy] = useState<"invoiceNumber" | "invoiceDate" | "dueDate">("invoiceDate");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const { enqueueSnackbar } = useSnackbar();
+  const { accounts } = useMsal();
+  const runOverdueCheckMutation = useRunOverdueCheck();
+
+  const account = accounts[0];
+  const claims = (account?.idTokenClaims ?? {}) as Record<string, unknown>;
+  const isAdmin = isUserAdmin(claims);
 
   const defaultFormValues: InvoiceFormValues = {
     customerId: "",
@@ -65,6 +94,18 @@ export function InvoicesPage() {
       () => createInvoiceMutation.mutateAsync(values)
     );
     setShowCreate(false);
+  };
+
+  const handleRunOverdueCheck = async () => {
+    try {
+      const result = await runOverdueCheckMutation.mutateAsync(undefined);
+      enqueueSnackbar(
+        `Overdue check triggered: ${result.jobsEnqueued} job(s) enqueued for ${result.companyIds.length} company(ies)`,
+        { variant: "success" }
+      );
+    } catch (error) {
+      enqueueSnackbar(error instanceof Error ? error.message : "Failed to trigger overdue check", { variant: "error" });
+    }
   };
 
   const tableRows = useMemo<
@@ -175,9 +216,21 @@ export function InvoicesPage() {
             Track invoice status, due dates, and payment progress.
           </Typography>
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setShowCreate(true)}>
-          Create Invoice
-        </Button>
+        <Stack direction="row" spacing={1}>
+          {isAdmin && (
+            <Button
+              variant="outlined"
+              startIcon={<ChecklistIcon />}
+              onClick={handleRunOverdueCheck}
+              disabled={runOverdueCheckMutation.isPending}
+            >
+              {runOverdueCheckMutation.isPending ? "Checking..." : "Run Overdue Check"}
+            </Button>
+          )}
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setShowCreate(true)}>
+            Create Invoice
+          </Button>
+        </Stack>
       </Stack>
 
       {invoicesQuery.isLoading ? <LoadingSpinner label="Loading invoices..." /> : null}
@@ -219,6 +272,12 @@ export function InvoicesPage() {
           </Alert>
         ) : null}
       </Modal>
+
+      {runOverdueCheckMutation.isError ? (
+        <Alert severity="error" sx={{ mt: 1.5 }}>
+          {runOverdueCheckMutation.error.message}
+        </Alert>
+      ) : null}
     </Stack>
   );
 }

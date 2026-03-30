@@ -68,3 +68,41 @@ export async function deleteInvoice(id: string): Promise<void> {
     throw new Error(data.error ?? "Failed to delete invoice.");
   }
 }
+
+export interface SendInvoiceEmailResponse {
+  jobId: string;
+  invoiceId: string;
+  message: string;
+}
+
+export async function sendInvoiceEmail(
+  invoiceId: string
+): Promise<SendInvoiceEmailResponse> {
+  const { data } = await apiClient.post<ApiResponse<SendInvoiceEmailResponse>>(
+    `${BASE}/${invoiceId}/send-email`
+  );
+  if (!data.isSuccess || !data.data) {
+    throw new Error(data.error ?? "Failed to send invoice email.");
+  }
+  return data.data;
+}
+
+export interface RunOverdueCheckResponse {
+  jobsEnqueued: number;
+  companyIds: string[];
+  message: string;
+}
+
+export async function runOverdueCheck(
+  companyId?: string
+): Promise<RunOverdueCheckResponse> {
+  const { data } = await apiClient.post<ApiResponse<RunOverdueCheckResponse>>(
+    `${BASE}/overdue-check/run`,
+    {},
+    { params: companyId ? { companyId } : {} }
+  );
+  if (!data.isSuccess || !data.data) {
+    throw new Error(data.error ?? "Failed to trigger overdue check.");
+  }
+  return data.data;
+}

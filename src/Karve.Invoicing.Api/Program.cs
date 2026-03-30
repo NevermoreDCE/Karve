@@ -5,6 +5,9 @@ using Karve.Invoicing.Api.Observability;
 using Karve.Invoicing.Api.Services;
 using Karve.Invoicing.Application;
 using Karve.Invoicing.Application.BackgroundJobs;
+using Karve.Invoicing.Application.BackgroundJobs.Handlers;
+using Karve.Invoicing.Application.BackgroundJobs.Jobs;
+using Karve.Invoicing.Application.Email;
 using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -72,6 +75,8 @@ public partial class Program
 
         builder.Services.Configure<OpenTelemetryOptions>(
             builder.Configuration.GetSection(OpenTelemetryOptions.SectionName));
+        builder.Services.Configure<EmailOptions>(
+            builder.Configuration.GetSection(EmailOptions.SectionName));
         builder.AddKarveOpenTelemetry();
         builder.Logging.Configure(options =>
         {
@@ -146,6 +151,10 @@ public partial class Program
         builder.Services.AddAutoMapper(_ => { }, typeof(AssemblyMarker).GetTypeInfo().Assembly);
         builder.Services.AddValidatorsFromAssemblyContaining<AssemblyMarker>();
         builder.Services.AddSingleton<IBackgroundJobQueue, BackgroundJobQueue>();
+        builder.Services.AddHostedService<BackgroundJobWorker>();
+        builder.Services.AddHostedService<OverdueInvoiceScheduler>();
+        builder.Services.AddScoped<IBackgroundJobHandler<SendInvoiceEmailJob>, SendInvoiceEmailJobHandler>();
+        builder.Services.AddScoped<IBackgroundJobHandler<CheckOverdueInvoicesJob>, CheckOverdueInvoicesJobHandler>();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddOpenApi(options =>
         {

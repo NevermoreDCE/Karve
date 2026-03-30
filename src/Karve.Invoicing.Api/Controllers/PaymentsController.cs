@@ -1,6 +1,8 @@
 using AutoMapper;
 using FluentValidation;
 using Karve.Invoicing.Api.Logging;
+using Karve.Invoicing.Application.BackgroundJobs;
+using Karve.Invoicing.Application.BackgroundJobs.Jobs;
 using Karve.Invoicing.Application.DTOs;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Responses;
@@ -29,6 +31,7 @@ public class PaymentsController : ControllerBase
     private readonly ICurrentUserService _currentUser;
     private readonly IValidator<CreatePaymentRequest> _createValidator;
     private readonly IValidator<UpdatePaymentRequest> _updateValidator;
+    private readonly IBackgroundJobQueue _backgroundJobQueue;
     private readonly ILogger<PaymentsController> _logger;
 
     /// <summary>
@@ -39,6 +42,7 @@ public class PaymentsController : ControllerBase
     /// <param name="currentUser">Current authenticated user context.</param>
     /// <param name="createValidator">Validator for creating payments.</param>
     /// <param name="updateValidator">Validator for updating payments.</param>
+    /// <param name="backgroundJobQueue">Background job queue for optional notifications.</param>
     /// <param name="logger">Logger for controller diagnostics.</param>
     public PaymentsController(
         IPaymentRepository repository,
@@ -46,6 +50,7 @@ public class PaymentsController : ControllerBase
         ICurrentUserService currentUser,
         IValidator<CreatePaymentRequest> createValidator,
         IValidator<UpdatePaymentRequest> updateValidator,
+        IBackgroundJobQueue backgroundJobQueue,
         ILogger<PaymentsController>? logger = null)
     {
         _repository = repository;
@@ -53,6 +58,7 @@ public class PaymentsController : ControllerBase
         _currentUser = currentUser;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
+        _backgroundJobQueue = backgroundJobQueue;
         _logger = logger ?? NullLogger<PaymentsController>.Instance;
     }
 
@@ -159,6 +165,30 @@ public class PaymentsController : ControllerBase
 
             payment.CompanyId = companyId;
             await _repository.AddAsync(payment);
+
+            // Optional: enqueue a payment-received notification flow.
+            // We reuse SendInvoiceEmailJob so the customer receives updated invoice/payment state.
+            try
+            {
+                await _backgroundJobQueue
+                    .QueueAsync(new SendInvoiceEmailJob(payment.InvoiceId, payment.CompanyId))
+                    .ConfigureAwait(false);
+
+                _logger.LogInformation(
+                    "Queued SendInvoiceEmailJob after payment creation. PaymentId={PaymentId} InvoiceId={InvoiceId} CompanyId={CompanyId}",
+                    payment.Id,
+                    payment.InvoiceId,
+                    payment.CompanyId);
+            }
+            catch (Exception queueEx)
+            {
+                _logger.LogWarning(
+                    queueEx,
+                    "Payment created but failed to enqueue payment notification job. PaymentId={PaymentId} InvoiceId={InvoiceId} CompanyId={CompanyId}",
+                    payment.Id,
+                    payment.InvoiceId,
+                    payment.CompanyId);
+            }
 
             activity?.SetTag("payment.id", payment.Id);
             activity?.SetTag("payment.company_id", payment.CompanyId);

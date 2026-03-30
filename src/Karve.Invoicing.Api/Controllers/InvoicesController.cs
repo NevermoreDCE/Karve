@@ -1,16 +1,20 @@
 using AutoMapper;
 using FluentValidation;
 using Karve.Invoicing.Api.Logging;
+using Karve.Invoicing.Application.BackgroundJobs;
+using Karve.Invoicing.Application.BackgroundJobs.Jobs;
 using Karve.Invoicing.Application.DTOs;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Responses;
 using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Domain.Entities;
+using Karve.Invoicing.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using System.Diagnostics;
+using System.Security.Claims;
 using Karve.Invoicing.Api.Observability;
 
 namespace Karve.Invoicing.Api.Controllers;
@@ -29,6 +33,7 @@ public class InvoicesController : ControllerBase
     private readonly ICurrentUserService _currentUser;
     private readonly IValidator<CreateInvoiceRequest> _createValidator;
     private readonly IValidator<UpdateInvoiceRequest> _updateValidator;
+    private readonly IBackgroundJobQueue _backgroundJobQueue;
     private readonly ILogger<InvoicesController> _logger;
 
     /// <summary>
@@ -39,6 +44,7 @@ public class InvoicesController : ControllerBase
     /// <param name="currentUser">Current authenticated user context.</param>
     /// <param name="createValidator">Validator for creating invoices.</param>
     /// <param name="updateValidator">Validator for updating invoices.</param>
+    /// <param name="backgroundJobQueue">Background job queue for async processing.</param>
     /// <param name="logger">Logger for controller diagnostics.</param>
     public InvoicesController(
         IInvoiceRepository repository,
@@ -46,6 +52,7 @@ public class InvoicesController : ControllerBase
         ICurrentUserService currentUser,
         IValidator<CreateInvoiceRequest> createValidator,
         IValidator<UpdateInvoiceRequest> updateValidator,
+        IBackgroundJobQueue backgroundJobQueue,
         ILogger<InvoicesController>? logger = null)
     {
         _repository = repository;
@@ -53,6 +60,7 @@ public class InvoicesController : ControllerBase
         _currentUser = currentUser;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
+        _backgroundJobQueue = backgroundJobQueue;
         _logger = logger ?? NullLogger<InvoicesController>.Instance;
     }
 
@@ -157,6 +165,25 @@ public class InvoicesController : ControllerBase
 
             invoice.CompanyId = companyId;
             await _repository.AddAsync(invoice);
+
+            try
+            {
+                await _backgroundJobQueue
+                    .QueueAsync(new SendInvoiceEmailJob(invoice.Id, invoice.CompanyId))
+                    .ConfigureAwait(false);
+                _logger.LogInformation(
+                    "Queued SendInvoiceEmailJob after invoice creation. InvoiceId={InvoiceId} CompanyId={CompanyId}",
+                    invoice.Id,
+                    invoice.CompanyId);
+            }
+            catch (Exception queueEx)
+            {
+                _logger.LogWarning(
+                    queueEx,
+                    "Invoice created but failed to enqueue SendInvoiceEmailJob. InvoiceId={InvoiceId} CompanyId={CompanyId}",
+                    invoice.Id,
+                    invoice.CompanyId);
+            }
 
             activity?.SetTag("invoice.id", invoice.Id);
             activity?.SetTag("invoice.company_id", invoice.CompanyId);
@@ -354,6 +381,70 @@ public class InvoicesController : ControllerBase
         return StatusCode(501, ApiResponse<PaymentDto>.Failure("Not implemented yet."));
     }
 
+    /// <summary>
+    /// Manually triggers overdue invoice checks by enqueuing jobs.
+    /// Intended for admin use.
+    /// </summary>
+    /// <param name="companyId">Optional company ID to target a single company.</param>
+    /// <returns>Accepted response with queueing details.</returns>
+    [HttpPost("overdue-check/run")]
+    public async Task<ActionResult<ApiResponse<object>>> RunOverdueCheck([FromQuery] Guid? companyId = null)
+    {
+        try
+        {
+            if (!IsAdminRequest())
+            {
+                return Forbid();
+            }
+
+            var targetCompanyIds = new List<Guid>();
+            if (companyId.HasValue)
+            {
+                if (!_currentUser.CompanyIds.Contains(companyId.Value))
+                {
+                    return Forbid();
+                }
+
+                targetCompanyIds.Add(companyId.Value);
+            }
+            else
+            {
+                if (_currentUser.CompanyIds.Count == 0)
+                {
+                    return BadRequest(ApiResponse<object>.Failure("No company membership found for the current user."));
+                }
+
+                targetCompanyIds.AddRange(_currentUser.CompanyIds.Distinct());
+            }
+
+            foreach (var targetCompanyId in targetCompanyIds)
+            {
+                await _backgroundJobQueue
+                    .QueueAsync(new CheckOverdueInvoicesJob(targetCompanyId))
+                    .ConfigureAwait(false);
+            }
+
+            _logger.LogInformation(
+                "Manual overdue check requested. RequestedCompanyId={RequestedCompanyId}, JobsEnqueued={JobsEnqueued}, Requester={Requester}",
+                companyId,
+                targetCompanyIds.Count,
+                _currentUser.Email ?? _currentUser.UserId ?? "unknown");
+
+            var response = new
+            {
+                JobsEnqueued = targetCompanyIds.Count,
+                CompanyIds = targetCompanyIds
+            };
+
+            return Accepted(ApiResponse<object>.Success(response));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to enqueue manual overdue check. RequestedCompanyId={RequestedCompanyId}", companyId);
+            return StatusCode(500, ApiResponse<object>.Failure("An error occurred while enqueuing overdue checks."));
+        }
+    }
+
     private bool TryGetSingleCompanyId(out Guid companyId, out string error)
     {
         companyId = Guid.Empty;
@@ -373,5 +464,22 @@ public class InvoicesController : ControllerBase
         companyId = _currentUser.CompanyIds[0];
         error = string.Empty;
         return true;
+    }
+
+    private bool IsAdminRequest()
+    {
+        var roleValues = User.FindAll(ClaimTypes.Role)
+            .Select(c => c.Value)
+            .Concat(User.FindAll("roles").Select(c => c.Value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        // Compatibility mode: if role claims are not present in the token, do not block the operation.
+        if (roleValues.Count == 0)
+        {
+            return true;
+        }
+
+        return roleValues.Contains(UserRole.Admin.ToString(), StringComparer.OrdinalIgnoreCase);
     }
 }

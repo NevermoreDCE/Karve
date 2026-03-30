@@ -1,3 +1,4 @@
+using Karve.Invoicing.Application.Email;
 using Karve.Invoicing.Application.Interfaces;
 using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Infrastructure.Repositories;
@@ -21,6 +22,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IUserProvisioningService, UserProvisioningService>();
         services.AddScoped<ICompanyMembershipService, CompanyMembershipService>();
+        services.AddScoped<IEmailSender, SmtpEmailSender>();
 
         return services;
     }

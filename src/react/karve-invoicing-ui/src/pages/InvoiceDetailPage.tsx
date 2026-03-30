@@ -12,6 +12,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import EmailOutlineIcon from "@mui/icons-material/EmailOutlined";
 import {
   Alert,
   Button,
@@ -36,6 +37,7 @@ import {
   useDeleteInvoice,
   useInvoice,
   useUpdateInvoice,
+  useSendInvoiceEmail,
 } from "../hooks/useInvoices";
 
 function toDateInputValue(isoDate: string): string {
@@ -59,6 +61,7 @@ export function InvoiceDetailPage() {
   const invoiceQuery = useInvoice(invoiceId);
   const updateInvoiceMutation = useUpdateInvoice();
   const deleteInvoiceMutation = useDeleteInvoice();
+  const sendEmailMutation = useSendInvoiceEmail();
   const { enqueueSnackbar } = useSnackbar();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -76,6 +79,16 @@ export function InvoiceDetailPage() {
     await deleteInvoiceMutation.mutateAsync(invoiceId);
     enqueueSnackbar("Invoice deleted.", { variant: "success" });
     navigate("/invoices");
+  };
+
+  const handleSendEmail = async () => {
+    if (!invoiceId) return;
+    try {
+      const result = await sendEmailMutation.mutateAsync(invoiceId);
+      enqueueSnackbar(`Email job enqueued: ${result.message}`, { variant: "success" });
+    } catch (error) {
+      enqueueSnackbar(error instanceof Error ? error.message : "Failed to send email", { variant: "error" });
+    }
   };
 
   if (!invoiceId) {
@@ -135,6 +148,15 @@ export function InvoiceDetailPage() {
           <Stack direction="row" spacing={1}>
             <Button variant="outlined" startIcon={<EditOutlinedIcon />} onClick={() => setIsEditing(true)}>
               Edit Invoice
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              startIcon={<EmailOutlineIcon />}
+              onClick={handleSendEmail}
+              disabled={sendEmailMutation.isPending}
+            >
+              {sendEmailMutation.isPending ? "Sending..." : "Send Email"}
             </Button>
             <Button
               color="error"
@@ -227,6 +249,9 @@ export function InvoiceDetailPage() {
       ) : null}
       {deleteInvoiceMutation.isError ? (
         <Alert severity="error">{deleteInvoiceMutation.error.message}</Alert>
+      ) : null}
+      {sendEmailMutation.isError ? (
+        <Alert severity="error">{sendEmailMutation.error.message}</Alert>
       ) : null}
     </Stack>
   );

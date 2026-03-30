@@ -10,6 +10,10 @@ import {
   createInvoice,
   updateInvoice,
   deleteInvoice,
+  sendInvoiceEmail,
+  runOverdueCheck,
+  type SendInvoiceEmailResponse,
+  type RunOverdueCheckResponse,
 } from "../api/invoicesApi";
 import type {
   InvoiceDto,
@@ -129,5 +133,17 @@ export function useDeleteInvoice() {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: invoiceKeys.lists() });
     },
+  });
+}
+
+export function useSendInvoiceEmail() {
+  return useMutation<SendInvoiceEmailResponse, Error, string>({
+    mutationFn: sendInvoiceEmail,
+  });
+}
+
+export function useRunOverdueCheck() {
+  return useMutation<RunOverdueCheckResponse, Error, string | undefined>({
+    mutationFn: runOverdueCheck,
   });
 }
