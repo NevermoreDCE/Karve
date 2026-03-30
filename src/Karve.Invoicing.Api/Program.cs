@@ -4,6 +4,7 @@ using Karve.Invoicing.Api.Middleware;
 using Karve.Invoicing.Api.Observability;
 using Karve.Invoicing.Api.Services;
 using Karve.Invoicing.Application;
+using Karve.Invoicing.Application.BackgroundJobs;
 using Karve.Invoicing.Application.Services;
 using Karve.Invoicing.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -144,6 +145,7 @@ public partial class Program
         });
         builder.Services.AddAutoMapper(_ => { }, typeof(AssemblyMarker).GetTypeInfo().Assembly);
         builder.Services.AddValidatorsFromAssemblyContaining<AssemblyMarker>();
+        builder.Services.AddSingleton<IBackgroundJobQueue, BackgroundJobQueue>();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddOpenApi(options =>
         {
